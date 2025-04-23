@@ -1,133 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Test Pixi.js Mesh</title>
+  <meta charset="UTF-8">
+  <title>3D Image Viewer</title>
     <style>
-        body { margin: 0; padding: 0; background-color: #f0f0f0; }
-        canvas { cursor: move; }
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
     </style>
 </head>
 <body>
-    <script src="./pixi.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
     <script>
-        const app = new PIXI.Application();
-        
-        app.init({
-            width: 800,
-            height: 600,
-            backgroundColor: 0xDDDDDD
-        }).then(() => {
-            document.body.appendChild(app.canvas);
-            
-            PIXI.Assets.load('./test.jpg').then(texture => {
-                // Dimensions du mesh
-                const meshWidth = 1200;
-                const meshHeight = 800;
+  // SCÈNE
+  const scene = new THREE.Scene();
 
-                // Créer une géométrie plane avec la nouvelle syntaxe
-                const geometry = new PIXI.PlaneGeometry({
-                    width: meshWidth,
-                    height: meshHeight,
-                    verticesX: 20,
-                    verticesY: 20
-                });
+  // CAMÉRA
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 3, -2.2);
+  camera.rotation.set(THREE.MathUtils.degToRad(-120), 0, THREE.MathUtils.degToRad(180));
 
-                // Créer le mesh avec la texture
-                const mesh = new PIXI.Mesh({
-                    geometry: geometry,
-                    texture: texture
-                });
+  // RENDU
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-                // Positionner le mesh au centre en compensant sa taille
-                mesh.position.set(
-                    app.screen.width/2 - meshWidth/2,
-                    app.screen.height/2 - meshHeight/2
-                );
+  // LUMIÈRE
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(0, 1, 1).normalize();
+  scene.add(light);
 
-                // Fonction pour mettre à jour la perspective
-                function updatePerspective() {
-                    const positions = geometry.positions;
-                    const canvasCenter = app.screen.width / 2;
-                    
-                    // Sauvegarder les positions originales si ce n'est pas déjà fait
-                    if (!geometry.originalPositions) {
-                        geometry.originalPositions = positions.slice();
-                    }
-                    
-                    for (let i = 0; i < positions.length; i += 2) {
-                        // Utiliser les positions originales pour le calcul
-                        const originalX = geometry.originalPositions[i];
-                        const originalY = geometry.originalPositions[i + 1];
-                        
-                        // Calculer la position relative au canvas
-                        const worldX = originalX + mesh.position.x;
-                        
-                        // Calculer la distance par rapport au centre du canvas
-                        const distanceFromCenter = (worldX - canvasCenter) / (app.screen.width / 2);
-                        
-                        // Calculer la hauteur normalisée (0 en bas, 1 en haut)
-                        const normalizedHeight = (originalY + meshHeight/2) / meshHeight;
-                        
-                        // Appliquer la déformation en fonction de la position
-                        const skewFactor = distanceFromCenter * normalizedHeight * 100;
-                        positions[i] = originalX + skewFactor;
-                        positions[i + 1] = originalY; // Conserver la position Y originale
-                    }
-                    
-                    // Mettre à jour la géométrie
-                    geometry.buffers[0].update();
-                }
+  // PLAN AVEC IMAGE
+  let plane;
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load('test.jpg', (texture) => {
+    const geometry = new THREE.PlaneGeometry(4, 3);
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    plane = new THREE.Mesh(geometry, material);
+    plane.rotation.x = -Math.PI / 2;
+    scene.add(plane);
+  });
 
-                // Variables pour gérer le déplacement
-                let isDragging = false;
-                let dragStart = { x: 0, y: 0 };
-                let startPos = { x: 0, y: 0 };
+  // Coordonnées monde à partir de la souris
+  function getMouseWorld(e) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
 
-                // Rendre le mesh interactif
-                mesh.eventMode = 'static';
-                
-                // Événements de la souris
-                mesh.on('pointerdown', onDragStart)
-                    .on('pointerup', onDragEnd)
-                    .on('pointerupoutside', onDragEnd)
-                    .on('pointermove', onDragMove);
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(ndc, camera);
+    const planeSurface = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Y = 0
+    const point = new THREE.Vector3();
+    raycaster.ray.intersectPlane(planeSurface, point);
+    return point;
+  }
 
-                function onDragStart(event) {
-                    isDragging = true;
-                    dragStart.x = event.global.x;
-                    dragStart.y = event.global.y;
-                    startPos.x = mesh.position.x;
-                    startPos.y = mesh.position.y;
-                }
+  let isDragging = false;
+  let dragStart = null;
+  let planeStartPosition = null;
 
-                function onDragEnd() {
-                    isDragging = false;
-                }
+  window.addEventListener('mousedown', (e) => {
+    if (!plane) return;
+    
+    isDragging = true;
+    dragStart = getMouseWorld(e);
+    planeStartPosition = plane.position.clone();
+  });
 
-                function onDragMove(event) {
-                    if (isDragging) {
-                        const newX = startPos.x + (event.global.x - dragStart.x);
-                        const newY = startPos.y + (event.global.y - dragStart.y);
-                        mesh.position.set(newX, newY);
-                        updatePerspective(); // Mettre à jour la perspective après le déplacement
-                    }
-                }
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging || !dragStart || !plane) return;
 
-                // Ajouter le mesh à la scène
-                app.stage.addChild(mesh);
-                
-                // Appliquer la perspective initiale
-                updatePerspective();
-                
-                console.log("Mesh ajouté à la scène avec perspective et interaction");
-            }).catch(error => {
-                console.error("Erreur lors du chargement de l'image:", error);
-            });
-        }).catch(error => {
-            console.error("Erreur d'initialisation de Pixi:", error);
-        });
+    const dragCurrent = getMouseWorld(e);
+    if (!dragCurrent) return;
+
+    // Calculer le déplacement et l'appliquer au plan
+    const delta = new THREE.Vector3().subVectors(dragStart, dragCurrent);
+    plane.position.copy(planeStartPosition.clone().sub(delta));
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+
+  window.addEventListener('wheel', (e) => {
+    if (!plane) return;
+
+    e.preventDefault();
+    
+    // Obtenir les coordonnées du point ciblé par la souris
+    const mousePoint = getMouseWorld(e);
+    if (!mousePoint) return;
+    
+    // Calculer le vecteur du centre du plan vers le point de la souris
+    const pointToPlaneDelta = new THREE.Vector3().subVectors(mousePoint, plane.position);
+    
+    // Facteur de zoom (augmentation ou diminution)
+    const scaleFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    
+    // Appliquer le zoom
+    plane.scale.multiplyScalar(scaleFactor);
+    
+    // Ajuster la position du plan pour que le point sous la souris reste fixe
+    // La formule est: newPosition = oldPosition + (1-scaleFactor) * (mousePoint-oldPosition)
+    plane.position.add(
+      pointToPlaneDelta.multiplyScalar(1 - scaleFactor)
+    );
+    
+  }, { passive: false });
+
+  // RENDU
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
     </script>
 </body>
 </html>
