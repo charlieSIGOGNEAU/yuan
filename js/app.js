@@ -1,41 +1,44 @@
+// Import coordinate transformer for hexagonal grid
+import { transformToOrthonormal } from './transformToOrthonormal.js';
+
 // Initialiser la scène 3D
 const scene3D = new Scene3D('canvas-container');
 
-// Créer et charger 4 pièces identiques
-async function loadPieces() {
+// Créer et charger les types de pièces puis leurs instances
+async function setupGame() {
   try {
-    // Options communes pour toutes les pièces
-    const pieceOptions = {
-      width: 4,
+    // Créer et charger un type de pièce
+    const cardType = new PieceType({
+      id: 'card',
+      width: 3,
       height: 3,
-      imageUrl: 'test.jpg'
-    };
+      // imageUrl: 'test.jpg'
+      imageUrl: 'images/Am.png'
+    });
     
-    // Créer les pièces et les charger
-    const piece1 = new Piece(pieceOptions);
-    const piece2 = new Piece(pieceOptions);
-    const piece3 = new Piece(pieceOptions);
-    const piece4 = new Piece(pieceOptions);
+    // Ajouter le type à la scène
+    scene3D.addPieceType(cardType);
     
-    // Charger les textures (en parallèle)
-    await Promise.all([
-      piece1.load(),
-      piece2.load(),
-      piece3.load(),
-      piece4.load()
-    ]);
+    // Charger la texture du type
+    await cardType.load();
     
-    // Ajouter les pièces à la scène avec différentes positions
-    scene3D.addPiece(piece1).placeAt(-6, 0, scene3D);   // Gauche
-    scene3D.addPiece(piece2).placeAt(-2, 0, scene3D);   // Centre-gauche
-    scene3D.addPiece(piece3).placeAt(2, 0, scene3D);    // Centre-droit
-    scene3D.addPiece(piece4).placeAt(6, 0, scene3D);    // Droite
+    // Créer plusieurs instances à différentes positions
+    const card1 = cardType.createInstance(...transformToOrthonormal(0, 0));
+    const card2 = cardType.createInstance(...transformToOrthonormal(2, 1));
+    const card3 = cardType.createInstance(...transformToOrthonormal(3, -2));
+    const card4 = cardType.createInstance(...transformToOrthonormal(-1, 3));
+    
+    // Ajouter les instances à la scène
+    scene3D.addInstance(card1.placeIn(scene3D));
+    scene3D.addInstance(card2.placeIn(scene3D));
+    scene3D.addInstance(card3.placeIn(scene3D));
+    scene3D.addInstance(card4.placeIn(scene3D));
     
     console.log("Toutes les pièces sont chargées et placées.");
   } catch (error) {
-    console.error("Erreur lors du chargement des pièces:", error);
+    console.error("Erreur lors du chargement:", error);
   }
 }
 
-// Démarrer le chargement des pièces
-loadPieces();
+// Démarrer l'initialisation
+setupGame();

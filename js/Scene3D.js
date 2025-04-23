@@ -1,7 +1,8 @@
 class Scene3D {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
-    this.pieces = [];
+    this.pieceTypes = new Map(); // Stocke les types par ID
+    this.instances = []; // Stocke les instances de pièces
     this.init();
   }
 
@@ -11,22 +12,23 @@ class Scene3D {
 
     // Configurer la caméra
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    this.camera.position.set(0, 3, -2.2);
-    this.camera.rotation.set(THREE.MathUtils.degToRad(-120), 0, THREE.MathUtils.degToRad(180));
+    this.camera.position.set(0, 3, 2);
+    this.camera.rotation.set(THREE.MathUtils.degToRad(-60), 0, 0);
 
     // Configurer le rendu
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild(this.renderer.domElement);
 
     // Ajouter l'éclairage
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(0, 1, 1).normalize();
-    this.scene.add(light);
+    // const light = new THREE.DirectionalLight(0xffffff, 1);
+    // light.position.set(0, 1, 1).normalize();
+    // this.scene.add(light);
 
     // Créer un plan de travail (conteneur pour toutes les pièces)
     this.workplane = new THREE.Group();
-    this.workplane.rotation.x = -Math.PI / 2; // Le plan est horizontal
+   
     this.scene.add(this.workplane);
 
     // Configurer les événements
@@ -62,11 +64,11 @@ class Scene3D {
     raycaster.setFromCamera(ndc, this.camera);
     
     // Intersection avec les pièces
-    const intersects = raycaster.intersectObjects(this.pieces.map(p => p.mesh), true);
+    const intersects = raycaster.intersectObjects(this.instances.map(i => i.mesh), true);
     if (intersects.length > 0) {
       return { 
         point: intersects[0].point, 
-        piece: this.pieces.find(p => p.mesh === intersects[0].object || p.mesh.children.includes(intersects[0].object))
+        instance: this.instances.find(i => i.mesh === intersects[0].object || i.mesh.children.includes(intersects[0].object))
       };
     }
 
@@ -74,7 +76,7 @@ class Scene3D {
     const planeSurface = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const point = new THREE.Vector3();
     raycaster.ray.intersectPlane(planeSurface, point);
-    return { point, piece: null };
+    return { point, instance: null };
   }
 
   onMouseDown(e) {
@@ -133,19 +135,33 @@ class Scene3D {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // Méthode pour ajouter une pièce
-  addPiece(piece) {
-    this.pieces.push(piece);
-    this.workplane.add(piece.mesh); // Ajouter au plan de travail au lieu de la scène
-    return piece;
+  // Méthode pour ajouter/récupérer un type de pièce
+  addPieceType(pieceType) {
+    this.pieceTypes.set(pieceType.id, pieceType);
+    return pieceType;
   }
 
-  // Méthode pour supprimer une pièce
-  removePiece(piece) {
-    const index = this.pieces.indexOf(piece);
+  getPieceType(id) {
+    return this.pieceTypes.get(id);
+  }
+
+  // Méthode pour ajouter une instance
+  addInstance(instance) {
+    if (!instance.mesh) {
+      instance.createMesh();
+    }
+    
+    this.instances.push(instance);
+    this.workplane.add(instance.mesh);
+    return instance;
+  }
+
+  // Méthode pour supprimer une instance
+  removeInstance(instance) {
+    const index = this.instances.indexOf(instance);
     if (index !== -1) {
-      this.pieces.splice(index, 1);
-      this.workplane.remove(piece.mesh);
+      this.instances.splice(index, 1);
+      this.workplane.remove(instance.mesh);
     }
   }
 }
