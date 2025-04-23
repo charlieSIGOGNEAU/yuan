@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Test Pixi.js Mesh</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f0f0f0; }
+        canvas { cursor: move; }
+    </style>
+</head>
+<body>
+    <script src="./pixi.js"></script>
+
+    <script>
+        const app = new PIXI.Application();
+        
+        app.init({
+            width: 800,
+            height: 600,
+            backgroundColor: 0xDDDDDD
+        }).then(() => {
+            document.body.appendChild(app.canvas);
+            
+            PIXI.Assets.load('./test.jpg').then(texture => {
+                // Dimensions du mesh
+                const meshWidth = 1200;
+                const meshHeight = 800;
+
+                // Créer une géométrie plane avec la nouvelle syntaxe
+                const geometry = new PIXI.PlaneGeometry({
+                    width: meshWidth,
+                    height: meshHeight,
+                    verticesX: 20,
+                    verticesY: 20
+                });
+
+                // Créer le mesh avec la texture
+                const mesh = new PIXI.Mesh({
+                    geometry: geometry,
+                    texture: texture
+                });
+
+                // Positionner le mesh au centre en compensant sa taille
+                mesh.position.set(
+                    app.screen.width/2 - meshWidth/2,
+                    app.screen.height/2 - meshHeight/2
+                );
+
+                // Fonction pour mettre à jour la perspective
+                function updatePerspective() {
+                    const positions = geometry.positions;
+                    const canvasCenter = app.screen.width / 2;
+                    
+                    // Sauvegarder les positions originales si ce n'est pas déjà fait
+                    if (!geometry.originalPositions) {
+                        geometry.originalPositions = positions.slice();
+                    }
+                    
+                    for (let i = 0; i < positions.length; i += 2) {
+                        // Utiliser les positions originales pour le calcul
+                        const originalX = geometry.originalPositions[i];
+                        const originalY = geometry.originalPositions[i + 1];
+                        
+                        // Calculer la position relative au canvas
+                        const worldX = originalX + mesh.position.x;
+                        
+                        // Calculer la distance par rapport au centre du canvas
+                        const distanceFromCenter = (worldX - canvasCenter) / (app.screen.width / 2);
+                        
+                        // Calculer la hauteur normalisée (0 en bas, 1 en haut)
+                        const normalizedHeight = (originalY + meshHeight/2) / meshHeight;
+                        
+                        // Appliquer la déformation en fonction de la position
+                        const skewFactor = distanceFromCenter * normalizedHeight * 100;
+                        positions[i] = originalX + skewFactor;
+                        positions[i + 1] = originalY; // Conserver la position Y originale
+                    }
+                    
+                    // Mettre à jour la géométrie
+                    geometry.buffers[0].update();
+                }
+
+                // Variables pour gérer le déplacement
+                let isDragging = false;
+                let dragStart = { x: 0, y: 0 };
+                let startPos = { x: 0, y: 0 };
+
+                // Rendre le mesh interactif
+                mesh.eventMode = 'static';
+                
+                // Événements de la souris
+                mesh.on('pointerdown', onDragStart)
+                    .on('pointerup', onDragEnd)
+                    .on('pointerupoutside', onDragEnd)
+                    .on('pointermove', onDragMove);
+
+                function onDragStart(event) {
+                    isDragging = true;
+                    dragStart.x = event.global.x;
+                    dragStart.y = event.global.y;
+                    startPos.x = mesh.position.x;
+                    startPos.y = mesh.position.y;
+                }
+
+                function onDragEnd() {
+                    isDragging = false;
+                }
+
+                function onDragMove(event) {
+                    if (isDragging) {
+                        const newX = startPos.x + (event.global.x - dragStart.x);
+                        const newY = startPos.y + (event.global.y - dragStart.y);
+                        mesh.position.set(newX, newY);
+                        updatePerspective(); // Mettre à jour la perspective après le déplacement
+                    }
+                }
+
+                // Ajouter le mesh à la scène
+                app.stage.addChild(mesh);
+                
+                // Appliquer la perspective initiale
+                updatePerspective();
+                
+                console.log("Mesh ajouté à la scène avec perspective et interaction");
+            }).catch(error => {
+                console.error("Erreur lors du chargement de l'image:", error);
+            });
+        }).catch(error => {
+            console.error("Erreur d'initialisation de Pixi:", error);
+        });
+    </script>
+</body>
+</html>
