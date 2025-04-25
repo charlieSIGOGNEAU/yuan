@@ -19,7 +19,10 @@ class PieceInstance {
     const material = new THREE.MeshBasicMaterial({
       map: this.pieceType.texture,
       transparent: true,
-      alphaTest: 0.5
+      alphaTest: 0.5,
+      color: 0xffffff, // Couleur blanche pour ne pas altérer l'image
+      depthWrite: true,
+      flatShading: true
     });
     
     this.mesh = new THREE.Mesh(geometry, material);

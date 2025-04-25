@@ -14,6 +14,9 @@ class Piece {
       textureLoader.load(
         this.imageUrl,
         (texture) => {
+          texture.encoding = THREE.sRGBEncoding;
+          texture.anisotropy = 1;
+
           const geometry = new THREE.PlaneGeometry(this.width, this.height);
           const material = new THREE.MeshBasicMaterial({ map: texture });
           this.mesh = new THREE.Mesh(geometry, material);

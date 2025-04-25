@@ -12,14 +12,19 @@ class Scene3D {
 
     // Configurer la caméra
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    this.camera.position.set(0, 3, 2);
+    this.camera.position.set(0, 9, 6);
     this.camera.rotation.set(THREE.MathUtils.degToRad(-60), 0, 0);
 
     // Configurer le rendu
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+
+    //this.renderer.outputEncoding = THREE.sRGBEncoding;  ou THREE.LinearEncoding selon votre version de Three.js
+    this.renderer.outputEncoding = THREE.LinearEncoding; // ou THREE.LinearEncoding selon votre version de Three.js
+    // this.renderer.setClearColor(0x000000); // Fond noir pour meilleur contraste
     
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild(this.renderer.domElement);
+
 
     // Ajouter l'éclairage
     // const light = new THREE.DirectionalLight(0xffffff, 1);
@@ -38,6 +43,7 @@ class Scene3D {
     this.animate();
   }
 
+ 
   setupEvents() {
     // Variables pour le glisser-déposer
     this.isDragging = false;
