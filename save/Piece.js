@@ -1,3 +1,4 @@
+//fichier non utilisé
 class Piece {
   constructor(options = {}) {
     this.width = options.width || 4;
@@ -15,7 +16,7 @@ class Piece {
         this.imageUrl,
         (texture) => {
           texture.encoding = THREE.sRGBEncoding;
-          texture.anisotropy = 1;
+          // texture.anisotropy = 8;
 
           const geometry = new THREE.PlaneGeometry(this.width, this.height);
           const material = new THREE.MeshBasicMaterial({ map: texture });

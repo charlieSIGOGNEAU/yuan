@@ -34,7 +34,7 @@ class PieceType {
   }
 
   // Crée une instance de ce type de pièce
-  createInstance(posX, posZ) {
-    return new PieceInstance(this, posX, posZ);
+  createInstance(posX, posY) {
+    return new PieceInstance(this, posX, posY);
   }
 } 

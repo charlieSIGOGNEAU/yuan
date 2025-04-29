@@ -1,0 +1,20 @@
+addTile(imageUrl, position = { x: 0, y: 0, z: 0 }){
+        function createTile(textureUrl, position) {
+            const textureLoader = new THREE.TextureLoader();
+            const texture = textureLoader.load(textureUrl);
+            
+            const geometry = new THREE.PlaneGeometry(3, 3);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                alphaTest: 0.5 
+            });
+            const plane = new THREE.Mesh(geometry, material);
+            
+            plane.position.set(position.x, position.y, position.z);
+            plane.rotation.x = -Math.PI / 2;
+            
+            return plane;
+        }
+        const tileA = createTile('images/Am.png', { x: 0, y: 0, z: 0 });
+        this.workplane.add(tileA);
+    }

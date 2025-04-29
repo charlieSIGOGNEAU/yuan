@@ -7,39 +7,17 @@ class Scene3D {
   }
 
   init() {
-    // Initialiser la scène
     this.scene = new THREE.Scene();
-
-    // Configurer la caméra
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
     this.camera.position.set(0, 9, 6);
     this.camera.rotation.set(THREE.MathUtils.degToRad(-60), 0, 0);
-
-    // Configurer le rendu
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-
-    //this.renderer.outputEncoding = THREE.sRGBEncoding;  ou THREE.LinearEncoding selon votre version de Three.js
-    this.renderer.outputEncoding = THREE.LinearEncoding; // ou THREE.LinearEncoding selon votre version de Three.js
-    // this.renderer.setClearColor(0x000000); // Fond noir pour meilleur contraste
-    
+    this.renderer.outputEncoding = THREE.LinearEncoding; 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild(this.renderer.domElement);
-
-
-    // Ajouter l'éclairage
-    // const light = new THREE.DirectionalLight(0xffffff, 1);
-    // light.position.set(0, 1, 1).normalize();
-    // this.scene.add(light);
-
-    // Créer un plan de travail (conteneur pour toutes les pièces)
     this.workplane = new THREE.Group();
-   
     this.scene.add(this.workplane);
-
-    // Configurer les événements
     this.setupEvents();
-
-    // Démarrer l'animation
     this.animate();
   }
 
@@ -170,4 +148,5 @@ class Scene3D {
       this.workplane.remove(instance.mesh);
     }
   }
+
 }

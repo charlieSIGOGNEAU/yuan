@@ -1,5 +1,5 @@
 // Import coordinate transformer for hexagonal grid
-import { transformToOrthonormal } from './transformToOrthonormal.js';
+// import { transformToOrthonormal } from './transformToOrthonormal.js';
 
 // Initialiser la scène 3D
 const scene3D = new Scene3D('canvas-container');
@@ -23,10 +23,10 @@ async function setupGame() {
     await cardType.load();
     
     // Créer plusieurs instances à différentes positions
-    const card1 = cardType.createInstance(...transformToOrthonormal(0, 0));
-    const card2 = cardType.createInstance(...transformToOrthonormal(2, 1));
-    const card3 = cardType.createInstance(...transformToOrthonormal(3, -2));
-    const card4 = cardType.createInstance(...transformToOrthonormal(-1, 3));
+    const card1 = cardType.createInstance(0, 0);
+    const card2 = cardType.createInstance(2, 1);
+    const card3 = cardType.createInstance(3, -2);
+    const card4 = cardType.createInstance(-1, 3);
     
     // Ajouter les instances à la scène
     scene3D.addInstance(card1.placeIn(scene3D));

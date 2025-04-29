@@ -1,12 +1,14 @@
 class PieceInstance {
-  constructor(pieceType, posX = 0, posZ = 0) {
+  constructor(pieceType, posX , posy) {
     this.pieceType = pieceType;
     this.posX = posX;
-    this.posZ = posZ;
+    this.posy = posy;
     this.mesh = null;
     this.scene = null;
   }
-
+  #transformToOrthonormal() {
+    return [(this.posX + 0.5 * this.posy), (Math.sqrt(3) / 2) * -this.posy];
+  }
   // Crée le mesh de rendu pour cette instance
   createMesh() {
     if (!this.pieceType.isLoaded) {
@@ -15,18 +17,14 @@ class PieceInstance {
     }
 
     const geometry = new THREE.PlaneGeometry(this.pieceType.width, this.pieceType.height);
-    // const material = new THREE.MeshBasicMaterial({ map: this.pieceType.texture });
     const material = new THREE.MeshBasicMaterial({
       map: this.pieceType.texture,
-      transparent: true,
-      alphaTest: 0.5,
-      color: 0xffffff, // Couleur blanche pour ne pas altérer l'image
-      depthWrite: true,
-      flatShading: true
+      alphaTest: 0.5 
     });
-    
     this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.position.set(this.posX, 0, this.posZ);
+
+    const [x,z]= this.#transformToOrthonormal();
+    this.mesh.position.set(x, 0, z);
     this.mesh.rotation.set(-Math.PI / 2, 0, 0);
 
     
@@ -43,19 +41,6 @@ class PieceInstance {
     return this;
   }
 
-  // Met à jour la position de l'instance
-  moveTo(x, z) {
-    this.posX = x;
-    this.posZ = z;
-    
-    if (this.mesh) {
-      this.mesh.position.set(x, 0, z);
-    }
-    
-    return this;
-  }
-
-  // Supprime l'instance (mais pas le type de pièce)
   remove() {
     if (this.scene) {
       this.scene.removeInstance(this);
