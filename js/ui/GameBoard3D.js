@@ -37,10 +37,11 @@ export class GameBoard3D {
         window.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
         window.addEventListener('resize', this.onResize.bind(this));
     }
+    //q correspond à un déplacement vers la droite. r correspond à un déplacement en diagonale en haut a droites.
     #hexToCartesian (position = {q: 0, r: 0}) {
         return {x: position.q+position.r/2, y: 0, z: -position.r/2*Math.sqrt(3)};
     }
-    // Méthode pour ajouter une tuile, q correspond à un déplacement vers la droite. r correspond à un déplacement en diagonale en haut a droites.
+    // Méthode pour ajouter une tuile
     addTile(imageUrl, position = { q: 0, r: 0}) {
         const textureLoader = new THREE.TextureLoader();
         const texture = textureLoader.load(imageUrl);

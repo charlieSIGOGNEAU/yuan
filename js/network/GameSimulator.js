@@ -1,3 +1,4 @@
+import { InstallationPhase } from '../phases/InstallationPhase.js';
 export class GameSimulator {
     constructor() {
         // Fausse base de données pour les parties
@@ -8,12 +9,14 @@ export class GameSimulator {
 
     // Crée une nouvelle partie
     createGame() {
+        const installationPhase = new InstallationPhase(3);
         const gameId = Date.now().toString();
         this.games.set(gameId, {
             players: [1, 2, 3], // Toujours 3 joueurs
             currentPlayer: 1,
             turn: 0,
-            playedTiles: []
+            playedTiles: [],
+            installationPhase: installationPhase,
         });
         this.currentGameId = gameId;
         return gameId;
