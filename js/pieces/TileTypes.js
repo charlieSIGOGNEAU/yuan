@@ -1,191 +1,78 @@
-export const TILE_TYPES = {
-    WATER: 'eau',
-    MOUNTAIN: 'montagne',
-    FOREST: 'foret',
-    MINE: 'mine',
-    RICE: 'riziere',
-    PLAIN: 'plaine'
-};
-
 export const TILE_CONFIGS = {
-    A: {
+    "Am": {
         image: '/images/Am.webp',
-        zones: [
-            TILE_TYPES.WATER,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MINE,
-            TILE_TYPES.WATER,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.PLAIN
-        ]
+        zones: ["water","mountain","mine","water","forest","mountain","plain"],
+        names: ["","","GE","","ALTAI","","CAO"]
     },
-    B: {
+    "Bm": {
         image: '/images/Bm.webp',
-        zones: [
-            TILE_TYPES.FOREST,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MINE,
-            TILE_TYPES.WATER,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.WATER,
-            TILE_TYPES.PLAIN
-        ]
+        zones: ["forest","mountain","mine","water","forest","water","plain"],
+        names: ["JU","","LI","","HUO","","MAND"]
     },
-    C: {
+    "Cm": {
         image: '/images/Cm.webp',
-        zones: [
-            TILE_TYPES.WATER,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MINE,
-            TILE_TYPES.MOUNTAIN
-        ]
+        zones: ["water","mountain","plain","forest","mountain","mine","mountain"],
+        names: ["","","QIN","TAN","","WUZ",""]
     },
-    D: {
+    "Dm": {
         image: '/images/Dm.webp',
-        zones: [
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.WATER,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.MINE,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.WATER
-        ]
+        zones: ["plain","water","forest","mine","rice","mountain","water"],
+        names: ["CHENG","","ZAV","XU","BAO","",""]
     },
-    E: {
+    "Em": {
         image: '/images/Em.webp',
-        zones: [
-            TILE_TYPES.WATER,
-            TILE_TYPES.RICE,
-            TILE_TYPES.RICE,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.WATER,
-            TILE_TYPES.WATER,
-            TILE_TYPES.MOUNTAIN
-        ]
+        zones: ["water","rice","rice","plain","water","water","mountain"],
+        names: ["","IK","HOV","GVI","","",""]
     },
-    F: {
+    "Fm": {
         image: '/images/Fm.webp',
-        zones: [
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.RICE,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.WATER,
-            TILE_TYPES.MOUNTAIN
-        ]
+        zones: ["mountain","mountain","rice","plain","forest","water","mountain"],
+        names: ["","","LIANG","KHAL","MAO","","",]
     },
-    G: {
+    "Gm": {
         image: '/images/Gm.webp',
-        zones: [
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.RICE,
-            TILE_TYPES.MINE,
-            TILE_TYPES.RICE,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN
-        ]
+        zones: ["plain","rice","mine","rice","forest","mountain","mountain"],
+        names: ["XIA","TANG","SONG","NIE","ULAN","",""]
     },
-    H: {
+    "Hm": {
         image: '/images/Hm.webp',
-        zones: [
-            TILE_TYPES.MINE,
-            TILE_TYPES.MINE,
-            TILE_TYPES.WATER,
-            TILE_TYPES.WATER,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.RICE,
-            TILE_TYPES.WATER
-        ]
+        zones: ["mine","mine","water","water","mountain","rice","water"],
+        names: ["BAY","ZHOU","","","","YAN",""]
     },
-    I: {
+    "Im": {
         image: '/images/Im.webp',
-        zones: [
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.WATER,
-            TILE_TYPES.RICE,
-            TILE_TYPES.FOREST
-        ]
+        zones: ["mountain","mountain","mountain","mountain","water","rice","forest"],
+        names: ["","","","","","FEI","GU"]
     },
-    J: {
+    "Jm": {
         image: '/images/Jm.webp',
-        zones: [
-            TILE_TYPES.RICE,
-            TILE_TYPES.WATER,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.RICE,
-            TILE_TYPES.MINE,
-            TILE_TYPES.MOUNTAIN
-        ]
+        zones: ["rice","water","plain","mountain","rice","mine","mountain"],
+        names: ["LU","","HUAN","","JIN","LAI",""]
     },
-    K: {
+    "Km": {
         image: '/images/Km.webp',
-        zones: [
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.WATER,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.WATER
-        ]
+        zones: ["plain","water","forest","forest","mountain","mountain","water"],
+        names: ["SUH","","OVOR","MI","","",""]
     },
-    L: {
+    "Lm": {
         image: '/images/Lm.webp',
-        zones: [
-            TILE_TYPES.WATER,
-            TILE_TYPES.WATER,
-            TILE_TYPES.MINE,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.MINE,
-            TILE_TYPES.WATER,
-            TILE_TYPES.WATER
-        ]
+        zones: ["water","water","mine","plain","mine","water","water"],
+        names: ["","","XIANG","WEY","TENG","",""]
     },
-    M: {
+    "Mm": {
         image: '/images/Mm.webp',
-        zones: [
-            TILE_TYPES.WATER,
-            TILE_TYPES.WATER,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.MINE
-        ]
+        zones: ["water","water","mountain","mountain","forest","plain","mine"],
+        names: ["","","","","YANG","ZONG","BAYAN"]
     },
-    N: {
+    "Nm": {
         image: '/images/Nm.webp',
-        zones: [
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.PLAIN,
-            TILE_TYPES.RICE,
-            TILE_TYPES.MINE,
-            TILE_TYPES.WATER,
-            TILE_TYPES.RICE
-        ]
+        zones: ["plain","forest","plain","rice","mine","water","rice"],
+        names: ["ZOU","YI","TOV","MOU","GUZA","","BOGD"]
     },
-    O: {
+    "Om": {
         image: '/images/Om.webp',
-        zones: [
-            TILE_TYPES.WATER,
-            TILE_TYPES.WATER,
-            TILE_TYPES.MINE,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.MOUNTAIN,
-            TILE_TYPES.FOREST,
-            TILE_TYPES.RICE
-        ]
+        zones: ["water","water","mine","mountain","mountain","forest","rice"],
+        names: ["","","YING","","","BUL","YU"]
     }
 }; 
+

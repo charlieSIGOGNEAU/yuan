@@ -1,5 +1,3 @@
-import { TILE_TYPES } from './TileTypes.js';
-
 export class Tile {
     // tiles du jeux qui comorte 7 zones
     //dans l'ordre (0,0) (1,0) (0,1) (-1,1) (-1,0) (0,-1) (1,-1)
