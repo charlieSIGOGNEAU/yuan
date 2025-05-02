@@ -35,12 +35,11 @@ export class GameBoard3D {
     }
 
     createCircle(position = {q: 0, r: 0}) {
-        const innerRadius = 0.9; // Rayon intérieur
-        const outerRadius = 1;   // Rayon extérieur
-        const segments = 32;
-        const geometry = new THREE.RingGeometry(innerRadius, outerRadius, segments);
-        const material = new THREE.MeshBasicMaterial({ 
-            color: 0xD3D3D3,
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load('./images/cercle.webp');
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
             transparent: true,
             opacity: 0.8,
             side: THREE.DoubleSide
