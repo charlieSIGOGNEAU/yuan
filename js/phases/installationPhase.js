@@ -1,3 +1,5 @@
+import { TILE_CONFIGS } from '../pieces/TileTypes.js';
+
 export const installationPhase = {
     tilesInGame(numPlayers) {
         const tileRanges = {
@@ -33,6 +35,16 @@ export const installationPhase = {
         return Array.from(adjacentSet).map(str => {
             const [q, r] = str.split(',').map(Number);
             return { q, r };
+        });
+    },
+
+    selectedTile(plateau,gameBoard) {
+        const getAllAdjacentTiles = installationPhase.getAllAdjacentTiles(plateau.playedTilesPosition);
+        gameBoard.addTileTemp(TILE_CONFIGS[plateau.tilesToPlay[0]].image, getAllAdjacentTiles[0],0);
+        console.log(plateau.tilesToPlay[0]);
+        getAllAdjacentTiles.forEach(position => {
+            gameBoard.createCircle(position);
+            // gameBoard.moveTileTemp({ q: -3, r: 2});
         });
     }
 }

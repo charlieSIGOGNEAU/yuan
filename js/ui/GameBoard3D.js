@@ -16,6 +16,17 @@ export class GameBoard3D {
         this.activePointerId = null; // Pour suivre le doigt actif
         this.clickStartPosition = null; // Pour détecter les clics
         this.clickStartTime = null; // Pour mesurer la durée du clic
+        this.tempTile = null;
+        this.tempTileRotation = null;
+        this.tempTileSprites = null;
+        this.tileTemp = null;
+        // Écouteur pour l'événement circleClicked
+        this.container.addEventListener('circleClicked', (event) => {
+            if (this.tempTile) {
+                this.moveTileTemp(event.detail.position);
+            }
+        });
+
         this.init();
     }
 
@@ -37,7 +48,7 @@ export class GameBoard3D {
     createCircle(position = {q: 0, r: 0}) {
         const textureLoader = new THREE.TextureLoader();
         const texture = textureLoader.load('./images/cercle.webp');
-        const geometry = new THREE.PlaneGeometry(2, 2);
+        const geometry = new THREE.PlaneGeometry(1.8, 1.8);
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
@@ -48,6 +59,11 @@ export class GameBoard3D {
         const pos = this.#hexToCartesian(position);
         circle.position.set(pos.x, pos.y, pos.z);
         circle.rotation.x = -Math.PI / 2; // Pour le mettre à plat sur le plan
+        
+        // Stockage de la position d'origine
+        circle.userData = {
+            position: position
+        };
         
         // Initialisation de l'échelle à 0
         circle.scale.set(0, 0, 0);
@@ -99,6 +115,87 @@ export class GameBoard3D {
         return tile;
     }
 
+    addTileTemp(imageUrl, position = { q: 0, r: 0}, rotation = 0) {
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load(imageUrl);
+        const geometry = new THREE.PlaneGeometry(2.5, 2.5); 
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            alphaTest: 0.5,
+        });
+        const tile = new THREE.Mesh(geometry, material);
+        const pos = this.#hexToCartesian(position);
+        tile.position.set(pos.x, 0.1, pos.z); // Hauteur fixée à 0.1
+        tile.rotation.x = -Math.PI / 2;
+        tile.rotation.z = rotation * Math.PI / 3;
+        this.workplane.add(tile);
+        // this.tiles.push(tile);
+        this.tileTemp = tile;
+
+        // Création des deux sprites rotation supplémentaires
+        const spriteGeometry = new THREE.PlaneGeometry(1, 1);
+        const rotationTexture = textureLoader.load('/images/rotation.webp');
+
+        // Premier sprite rotation à droite
+        const rightSprite = new THREE.Mesh(spriteGeometry, new THREE.MeshBasicMaterial({
+            map: rotationTexture,
+            alphaTest: 0.5,
+        }));
+        rightSprite.position.set(pos.x + 0.5, 0.2, pos.z); // Position relative à la tuile principale
+        rightSprite.rotation.x = -Math.PI / 2;
+        rightSprite.rotation.z = 0;
+        this.workplane.add(rightSprite);
+        this.tiles.push(rightSprite);
+
+        // Deuxième sprite rotation à gauche (avec symétrie verticale)
+        const leftSprite = new THREE.Mesh(spriteGeometry, new THREE.MeshBasicMaterial({
+            map: rotationTexture,
+            alphaTest: 0.5,
+        }));
+        leftSprite.position.set(pos.x - 0.5, 0.2, pos.z); // Position relative à la tuile principale
+        leftSprite.rotation.x = -Math.PI / 2;
+        leftSprite.rotation.z = 0;
+        leftSprite.scale.x = -1; // Symétrie verticale
+        this.workplane.add(leftSprite);
+        this.tiles.push(leftSprite);
+
+        // Sprite OK
+        const okTexture = textureLoader.load('/images/buttonOk.webp');
+        const okSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: okTexture,
+            transparent: true,
+            alphaTest: 0.5
+        }));
+        okSprite.position.set(pos.x + 1, 0.4, pos.z - 1); // Position relative à la tuile principale
+        okSprite.scale.set(1, 1, 1); // Taille du sprite
+        this.workplane.add(okSprite);
+        this.tiles.push(okSprite);
+
+        // Stocker les références aux sprites
+        this.tempTile = tile;
+        this.tempTileRotation = rotation;
+        this.tempTileSprites = [leftSprite, rightSprite, okSprite];
+
+        return tile;
+    }
+
+    // Nouvelle méthode pour déplacer la tuile temporaire
+    moveTileTemp(position = { q: 0, r: 0 }) {
+        if (this.tempTile) {
+            const pos = this.#hexToCartesian(position);
+            
+            // Déplacer la tuile principale
+            this.tempTile.position.set(pos.x, 0.1, pos.z);
+            
+            // Déplacer les sprites de rotation et le bouton OK
+            if (this.tempTileSprites) {
+                this.tempTileSprites[0].position.set(pos.x - 0.5, 0.2, pos.z); // Sprite rotation gauche
+                this.tempTileSprites[1].position.set(pos.x + 0.5, 0.2, pos.z); // Sprite rotation droit
+                this.tempTileSprites[2].position.set(pos.x + 1, 0.4, pos.z - 1); // Bouton OK
+            }
+        }
+    }
+
     removeAllCircles() {
         // Supprime tous les cercles du workplane
         this.circles.forEach(circle => {
@@ -120,13 +217,26 @@ export class GameBoard3D {
 
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(ndc, this.camera);
-        
-        // Intersection avec les pièces
-        const intersects = raycaster.intersectObjects(this.instances.map(i => i.mesh), true);
+
+        // Intersection avec les pièces, les cercles et les sprites de rotation
+        const instanceMeshes = this.instances.map(i => i.mesh);
+        const circleMeshes = this.circles;
+        const rotationSprites = this.tempTileSprites || [];
+        const allMeshes = instanceMeshes.concat(circleMeshes, rotationSprites);
+
+        const intersects = raycaster.intersectObjects(allMeshes, true);
         if (intersects.length > 0) {
+            // On cherche si c'est un cercle, une instance ou un sprite de rotation
+            const intersected = intersects[0].object;
+            const instance = this.instances.find(i => i.mesh === intersected || i.mesh.children.includes(intersected));
+            const circle = this.circles.find(c => c === intersected);
+            const rotationSprite = this.tempTileSprites?.find(s => s === intersected);
+
             return { 
                 point: intersects[0].point, 
-                instance: this.instances.find(i => i.mesh === intersects[0].object || i.mesh.children.includes(intersects[0].object))
+                instance,
+                circle,
+                rotationSprite
             };
         }
 
@@ -134,7 +244,7 @@ export class GameBoard3D {
         const planeSurface = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         const point = new THREE.Vector3();
         raycaster.ray.intersectPlane(planeSurface, point);
-        return { point, instance: null };
+        return { point, instance: null, circle: null, rotationSprite: null };
     }
 
     onPointerDown(e) {
@@ -192,10 +302,13 @@ export class GameBoard3D {
             
             // Si le déplacement est inférieur à 5 pixels ET la durée est inférieure à 500ms
             if (maxDistance < 5 && duration < 1000) {
-                console.log('Clic détecté ! Durée:', duration.toFixed(0), 'ms');
                 const result = this.getMouseWorld(e);
-                if (result.object) {
-                    this.handleObjectClick(result.object);
+                if (result.rotationSprite) {
+                    this.handleRotationSpriteClick(result.rotationSprite);
+                } else if (result.circle) {
+                    this.handleCircleClick(result.circle);
+                } else if (result.instance) {
+                    this.handleObjectClick(result.instance);
                 }
             }
         }
@@ -211,6 +324,53 @@ export class GameBoard3D {
 
     handleObjectClick(object) {
         console.log('Objet cliqué:', object);
+    }
+
+    handleCircleClick(circle) {
+        // Création et émission de l'événement personnalisé
+        const event = new CustomEvent('circleClicked', {
+            detail: {
+                position: circle.userData.position
+            }
+        });
+        this.container.dispatchEvent(event);
+    }
+
+    animateTileTempRotation(targetRotation) {
+        if (!this.tileTemp) return;
+        const startRotation = this.tileTemp.rotation.z;
+        // Corrige la différence d'angle pour prendre le plus court chemin
+        let delta = targetRotation - startRotation;
+        if (delta > Math.PI) delta -= 2 * Math.PI;
+        if (delta < -Math.PI) delta += 2 * Math.PI;
+        const endRotation = startRotation + delta;
+
+        this.animations.push({
+            object: this.tileTemp,
+            property: 'rotationZ',
+            startTime: performance.now(),
+            duration: 150,
+            from: { z: startRotation },
+            to: { z: endRotation }
+        });
+    }
+
+    handleRotationSpriteClick(sprite) {
+        if (sprite === this.tempTileSprites[0]) {
+            console.log('Sprite de rotation gauche cliqué');
+            this.tempTileRotation += 1;
+        } else if (sprite === this.tempTileSprites[1]) {
+            console.log('Sprite de rotation droite cliqué');
+            this.tempTileRotation -= 1;
+        } else if (sprite === this.tempTileSprites[2]) {
+            console.log('Bouton OK cliqué');
+            this.removeTempTile();
+            return;
+        }
+        this.tempTileRotation = (this.tempTileRotation + 6) % 6;
+        console.log(this.tempTileRotation);
+        // Appelle l'animation au lieu de changer directement la rotation
+        this.animateTileTempRotation(this.tempTileRotation * Math.PI / 3);
     }
 
     onWheel(e) {
@@ -247,9 +407,15 @@ export class GameBoard3D {
             const elapsed = currentTime - animation.startTime;
             const progress = Math.min(elapsed / animation.duration, 1);
             
-            // Animation d'échelle
-            const scale = animation.from.scale + (animation.to.scale - animation.from.scale) * progress;
-            animation.object.scale.set(scale, scale, scale);
+            if (animation.property === 'rotationZ') {
+                // Animation de rotation
+                const z = animation.from.z + (animation.to.z - animation.from.z) * progress;
+                animation.object.rotation.z = z;
+            } else {
+                // Animation d'échelle (déjà existant)
+                const scale = animation.from.scale + (animation.to.scale - animation.from.scale) * progress;
+                animation.object.scale.set(scale, scale, scale);
+            }
             
             // Suppression de l'animation une fois terminée
             if (progress === 1) {
@@ -279,4 +445,30 @@ export class GameBoard3D {
     //         this.workplane.remove(instance.mesh);
     //     }
     // }
+
+    removeTempTile() {
+        // Supprimer la tuile temporaire
+        if (this.tileTemp) {
+            this.workplane.remove(this.tileTemp);
+            this.tileTemp.geometry.dispose();
+            this.tileTemp.material.dispose();
+            this.tileTemp = null;
+        }
+
+        // Supprimer les sprites de rotation et le bouton OK
+        if (this.tempTileSprites) {
+            this.tempTileSprites.forEach(sprite => {
+                this.workplane.remove(sprite);
+                sprite.geometry.dispose();
+                sprite.material.dispose();
+            });
+            this.tempTileSprites = null;
+        }
+
+        // Supprimer les cercles
+        this.removeAllCircles();
+
+        // Réinitialiser la rotation
+        this.tempTileRotation = null;
+    }
 } 
