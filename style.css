@@ -14,7 +14,7 @@ body {
     gap: 20px;
     z-index: 10;
 }
-#player-buttons button {
+.player-btn {
     padding: 10px 24px;
     font-size: 18px;
     border: none;
@@ -23,8 +23,9 @@ body {
     color: white;
     cursor: pointer;
     transition: background 0.2s;
+    user-select: none;
 }
-#player-buttons button.active {
+.player-btn.active {
     background: #2196F3;
 }
 #threejs-container {

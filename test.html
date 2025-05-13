@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px 0;
+        }
+        #userInfo {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test API</h1>
+    <div class="container">
+        <input type="text" id="username" placeholder="Entrez votre nom">
+        <button onclick="login()">Se connecter</button>
+        <button onclick="logout()" style="display: none;" id="logoutBtn">Se déconnecter</button>
+    </div>
+    <div id="userInfo"></div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ name: username })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('userInfo').innerHTML = `
+                        <h2>Connecté en tant que : ${data.name}</h2>
+                    `;
+                    document.getElementById('logoutBtn').style.display = 'inline-block';
+                } else {
+                    alert(data.error || 'Erreur de connexion');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur de connexion');
+            }
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch(`${API_URL}/logout`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    document.getElementById('userInfo').style.display = 'none';
+                    document.getElementById('logoutBtn').style.display = 'none';
+                    document.getElementById('username').value = '';
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur de déconnexion');
+            }
+        }
+    </script>
+</body>
+</html>

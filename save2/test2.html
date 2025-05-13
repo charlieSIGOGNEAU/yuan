@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Multiple Methods</title>
+    <style>
+        .hover-area {
+            width: 200px;
+            height: 100px;
+            background-color: #f0f0f0;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        .clickable {
+            cursor: pointer;
+            padding: 10px;
+            margin: 10px;
+            background-color: #e0e0e0;
+            display: inline-block;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            min-height: 50px;
+            transition: background-color 0.3s;
+        }
+        #result.loading {
+            background-color: #fff3cd;
+        }
+        #result.success {
+            background-color: #d4edda;
+        }
+        #result.error {
+            background-color: #f8d7da;
+        }
+        .login-form {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-form">
+        <h2>Login</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button type="button" id="loginButton">Login</button>
+    </div>
+
+    <div id="authenticatedContent" style="display: none;">
+        <h2>Méthode 1: Bouton avec addEventListener</h2>
+        <button type="button" id="testButton">Cliquez-moi</button>
+
+        <h2>Méthode 2: Div cliquable avec addEventListener</h2>
+        <div class="clickable" id="clickableDiv">Cliquez sur cette div</div>
+
+        <h2>Méthode 3: Zone de survol</h2>
+        <div class="hover-area" id="hoverArea">Survolez-moi</div>
+
+        <h2>Méthode 4: Input avec bouton</h2>
+        <input type="text" id="userInput" placeholder="Entrez un ID">
+        <button type="button" id="searchButton">Rechercher</button>
+
+        <h2>Méthode 5: Lien avec addEventListener</h2>
+        <a href="#" id="testLink">Cliquez sur ce lien</a>
+
+        <h2>Méthode 6: Formulaire avec addEventListener</h2>
+        <form id="testForm">
+            <button type="submit">Soumettre le formulaire</button>
+        </form>
+    </div>
+
+    <h2>Résultats:</h2>
+    <div id="result">Connectez-vous pour commencer</div>
+
+    <script>
+        let token = null;
+
+        function makeRequest(source) {
+            if (!token) {
+                document.getElementById('result').textContent = 'Veuillez vous connecter d\'abord';
+                return;
+            }
+
+            console.log(`Début de la requête depuis: ${source}`);
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = `Requête en cours depuis: ${source}`;
+            resultDiv.className = 'loading';
+
+            fetch('http://localhost:3000/api/users/2', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+                .then(response => {
+                    if (response.status === 401) {
+                        throw new Error('Non autorisé');
+                    }
+                    console.log(`Réponse reçue de ${source}:`, response);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Données reçues de ${source}:`, data);
+                    resultDiv.textContent = `Succès (${source}): ${data.name}`;
+                    resultDiv.className = 'success';
+                })
+                .catch(error => {
+                    console.error(`Erreur de ${source}:`, error);
+                    resultDiv.textContent = `Erreur (${source}): ${error}`;
+                    resultDiv.className = 'error';
+                });
+        }
+
+        function makeRequestWithInput() {
+            if (!token) {
+                document.getElementById('result').textContent = 'Veuillez vous connecter d\'abord';
+                return;
+            }
+
+            const userId = document.getElementById('userInput').value || '2';
+            console.log(`Début de la requête pour l'utilisateur ${userId}`);
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = `Requête en cours pour l'utilisateur ${userId}`;
+            resultDiv.className = 'loading';
+
+            fetch(`http://localhost:3000/api/users/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+                .then(response => {
+                    if (response.status === 401) {
+                        throw new Error('Non autorisé');
+                    }
+                    console.log(`Réponse reçue pour l'utilisateur ${userId}:`, response);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Données reçues pour l'utilisateur ${userId}:`, data);
+                    resultDiv.textContent = `Succès (input): ${data.name}`;
+                    resultDiv.className = 'success';
+                })
+                .catch(error => {
+                    console.error(`Erreur pour l'utilisateur ${userId}:`, error);
+                    resultDiv.textContent = `Erreur (input): ${error}`;
+                    resultDiv.className = 'error';
+                });
+        }
+
+        // Configuration des événements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Login
+            document.getElementById('loginButton').addEventListener('click', function() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.token) {
+                        token = data.token;
+                        document.getElementById('authenticatedContent').style.display = 'block';
+                        document.getElementById('result').textContent = 'Connecté avec succès';
+                    } else {
+                        document.getElementById('result').textContent = 'Erreur de connexion';
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('result').textContent = 'Erreur de connexion: ' + error;
+                });
+            });
+
+            // Méthode 1: Bouton
+            document.getElementById('testButton').addEventListener('click', function(e) {
+                e.preventDefault();
+                makeRequest('button');
+            });
+
+            // Méthode 2: Div cliquable
+            document.getElementById('clickableDiv').addEventListener('click', function(e) {
+                e.preventDefault();
+                makeRequest('div');
+            });
+
+            // Méthode 3: Zone de survol
+            document.getElementById('hoverArea').addEventListener('mouseover', function(e) {
+                e.preventDefault();
+                makeRequest('hover');
+            });
+
+            // Méthode 4: Input avec bouton
+            document.getElementById('searchButton').addEventListener('click', function(e) {
+                e.preventDefault();
+                makeRequestWithInput();
+            });
+
+            // Méthode 5: Lien
+            document.getElementById('testLink').addEventListener('click', function(e) {
+                e.preventDefault();
+                makeRequest('link');
+            });
+
+            // Méthode 6: Formulaire
+            document.getElementById('testForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                makeRequest('form');
+            });
+        });
+    </script>
+</body>
+</html> 

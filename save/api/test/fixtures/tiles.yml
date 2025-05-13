@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  name: MyString
+  position: MyString
+  rotation: 1
+  turn: 1
+  user: one
+  game: one
+
+two:
+  name: MyString
+  position: MyString
+  rotation: 1
+  turn: 1
+  user: two
+  game: two
