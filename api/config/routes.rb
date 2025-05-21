@@ -8,9 +8,7 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
 
-  post '/login', to: 'users#login'
-  delete '/logout', to: 'users#logout'
-  get '/me', to: 'users#show'
-  
-  resources :tests, only: [:index, :create]
+  post 'auth/login', to: 'authentication#login'
+  get 'users/me', to: 'users#show'  # Gardé uniquement pour les tests
+  post 'games/quick', to: 'games#quick_game'
 end
