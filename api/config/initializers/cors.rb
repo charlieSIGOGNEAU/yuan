@@ -7,10 +7,13 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins 'http://localhost:8000'
+    # Pour le développement, nous autorisons toutes les origines localhost.
+    # En production, spécifiez les domaines exacts.
+    origins 'http://localhost:8000', 'http://127.0.0.1:8000' # Si vous servez votre HTML avec python -m http.server sur le port 8000
 
-    resource '*',
+    resource "*",
       headers: :any,
-      methods: [:get, :post, :put, :patch, :delete, :options, :head]
+      methods: [:get, :post, :put, :patch, :delete, :options, :head],
+      credentials: true # Important si vous avez besoin de gérer des cookies/sessions via ActionCable
   end
 end
