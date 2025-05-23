@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Action Cable</title>
+    <script>
+        let cable = null;
+        let isConnected = false;
+
+        function getWebSocketUrl() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            return `${protocol}//localhost:3000/cable`;
+        }
+
+        function connectWebSocket() {
+            console.log("Tentative de connexion WebSocket...");
+            const wsUrl = getWebSocketUrl();
+            console.log("URL WebSocket:", wsUrl);
+            
+            cable = new WebSocket(wsUrl);
+
+            cable.onopen = function() {
+                console.log("✅ WebSocket connecté");
+                isConnected = true;
+                
+                // Message de souscription avec le format exact
+                const subscribeMsg = {
+                    command: "subscribe",
+                    identifier: JSON.stringify({ channel: "PingChannel" })
+                };
+                console.log("Envoi de la souscription:", subscribeMsg);
+                cable.send(JSON.stringify(subscribeMsg));
+            };
+
+            cable.onmessage = function(event) {
+                console.log("📨 Message reçu:", event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log("Message parsé:", data);
+
+                    if (data.type === "confirm_subscription") {
+                        console.log("✅ Souscription confirmée");
+                        return;
+                    }
+
+                    if (data.type === "ping") {
+                        console.log("Ping reçu");
+                        return;
+                    }
+
+                    if (data.message && data.message.response === "OK") {
+                        console.log("✅ Réponse OK reçue");
+                        document.getElementById("result").innerText = "Réponse : OK";
+                    }
+                } catch (error) {
+                    console.error("Erreur lors du parsing du message:", error);
+                }
+            };
+
+            cable.onerror = function(error) {
+                console.error("❌ Erreur WebSocket:", error);
+                isConnected = false;
+            };
+
+            cable.onclose = function(event) {
+                console.log("❌ WebSocket déconnecté", event.code, event.reason);
+                isConnected = false;
+            };
+        }
+
+        // Fonction pour envoyer un ping
+        function sendPing() {
+            if (!isConnected) {
+                console.error("❌ WebSocket n'est pas connecté");
+                return;
+            }
+            console.log("Envoi du ping...");
+            const msg = {
+                command: "message",
+                identifier: JSON.stringify({ channel: "PingChannel" }),
+                data: JSON.stringify({ command: "ping" })
+            };
+            console.log("Message à envoyer:", msg);
+            cable.send(JSON.stringify(msg));
+        }
+
+        // Fonction pour tester l'envoi depuis l'API
+        function testBroadcast() {
+            console.log("Test d'envoi depuis l'API...");
+            fetch('http://localhost:3000/test/broadcast')
+                .then(response => response.json())
+                .then(data => console.log("Réponse du serveur:", data))
+                .catch(error => console.error("Erreur:", error));
+        }
+
+        // Connexion initiale
+        connectWebSocket();
+    </script>
+</head>
+<body>
+    <h1>Test Action Cable</h1>
+    <button onclick="sendPing()">Envoyer ping</button>
+    <button onclick="testBroadcast()">Tester l'envoi depuis l'API</button>
+    <div id="result"></div>
+</body>
+</html> 

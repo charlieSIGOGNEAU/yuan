@@ -1,64 +1,108 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Test API</title>
+    <meta charset="UTF-8">
+    <title>Test Action Cable avec Rails 7</title>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const nameInput = document.getElementById("nameInput");
+            const sendButton = document.getElementById("sendButton");
+            const resultDiv = document.getElementById("result");
+            let webSocket = null;
+
+            function connectWebSocket() {
+                // Adaptez l'URL si votre serveur Rails tourne sur un autre port
+                webSocket = new WebSocket("ws://localhost:3000/cable");
+
+                webSocket.onopen = function(event) {
+                    console.log("WebSocket connection opened!");
+                    resultDiv.innerHTML = "Connecté au serveur WebSocket.";
+
+                    // S'abonner au channel EchoChannel
+                    const subscribeMsg = {
+                        command: "subscribe",
+                        identifier: JSON.stringify({ channel: "EchoChannel" })
+                    };
+                    webSocket.send(JSON.stringify(subscribeMsg));
+                    console.log("Sent subscribe message:", subscribeMsg);
+                };
+
+                webSocket.onmessage = function(event) {
+                    console.log("Raw message from server:", event.data); // Log brut
+                    try {
+                        const parsedData = JSON.parse(event.data);
+                        console.log("Parsed data from server:", parsedData); // Log de l'objet parsé
+
+                        if (parsedData.type === "confirm_subscription" || parsedData.type === "ping") {
+                            console.log("Received system message:", parsedData.type);
+                            return;
+                        }
+
+                        if (parsedData.message && typeof parsedData.message === 'string') {
+                            resultDiv.innerHTML = parsedData.message;
+                        } else if (parsedData.error && typeof parsedData.error === 'string') {
+                            resultDiv.innerHTML = "Erreur: " + parsedData.error;
+                            console.error("Error from server:", parsedData.error);
+                        } else {
+                            // Si le format n'est pas attendu, on affiche la donnée brute pour investigation
+                            resultDiv.innerHTML = "Donnée inattendue reçue: " + event.data;
+                            console.warn("Unexpected data format from server:", parsedData);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing message from server:", e);
+                        resultDiv.innerHTML = "Erreur de format du message serveur: " + event.data;
+                    }
+                };
+
+                webSocket.onclose = function(event) {
+                    console.log("WebSocket connection closed:", event);
+                    resultDiv.innerHTML = "Déconnecté du serveur WebSocket. Tentative de reconnexion...";
+                    // Petite temporisation avant de tenter la reconnexion pour éviter les boucles rapides
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                webSocket.onerror = function(error) {
+                    console.error("WebSocket Error:", error);
+                    resultDiv.innerHTML = "Erreur de connexion WebSocket.";
+                };
+            }
+
+            sendButton.addEventListener("click", function() {
+                const name = nameInput.value;
+                if (name.trim() === "") {
+                    alert("Veuillez entrer un nom.");
+                    return;
+                }
+
+                if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+                    const message = {
+                        command: "message",
+                        identifier: JSON.stringify({ channel: "EchoChannel" }), // Assurez-vous que le client est abonné
+                        data: JSON.stringify({ name: name })
+                    };
+                    webSocket.send(JSON.stringify(message));
+                    console.log("Sent name to server:", name);
+                    resultDiv.innerHTML = "Nom envoyé: " + name;
+                } else {
+                    alert("La connexion WebSocket n'est pas ouverte. Veuillez patienter.");
+                    console.log("WebSocket not open. ReadyState:", webSocket ? webSocket.readyState : 'null');
+                }
+            });
+
+            // Démarrer la connexion WebSocket
+            connectWebSocket();
+        });
+    </script>
 </head>
 <body>
-    <input type="text" id="name" placeholder="Entrez votre nom">
-    <button onclick="login()">Se connecter</button>
-    <button onclick="checkAuth()">Vérifier l'authentification</button>
-    <p id="result"></p>
-
-    <script>
-        let token = '';
-
-        async function login() {
-            const name = document.getElementById('name').value;
-            try {
-                const response = await fetch('http://localhost:3000/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    token = data.token;
-                    localStorage.setItem('token', token);
-                    document.getElementById('result').textContent = 'Connecté !';
-                    console.log('Token stocké:', token);
-                    console.log('Redirection vers home.html...');
-                    window.location.href = 'home.html';
-                } else {
-                    document.getElementById('result').textContent = 'Erreur : ' + data.error;
-                }
-            } catch (error) {
-                document.getElementById('result').textContent = 'Erreur : ' + error;
-            }
-        }
-
-        async function checkAuth() {
-            if (!token) {
-                document.getElementById('result').textContent = 'Non connecté';
-                return;
-            }
-            try {
-                const response = await fetch('http://localhost:3000/users/me', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    document.getElementById('result').textContent = 'Authentifié en tant que : ' + data.name;
-                } else {
-                    document.getElementById('result').textContent = 'Erreur : ' + data.error;
-                }
-            } catch (error) {
-                document.getElementById('result').textContent = 'Erreur : ' + error;
-            }
-        }
-    </script>
+    <h1>Test Action Cable avec Rails 7</h1>
+    <div>
+        <label for="nameInput">Entrez un nom :</label>
+        <input type="text" id="nameInput">
+        <button id="sendButton">Envoyer</button>
+    </div>
+    <div id="result" style="margin-top: 20px;">
+        En attente de connexion...
+    </div>
 </body>
-</html>
+</html> 

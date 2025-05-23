@@ -1,0 +1,19 @@
+Modifications pour tester Action Cable :
+
+1. Fichiers à créer :
+   - api/app/channels/application_cable.rb
+   - api/app/channels/ping_channel.rb
+   - api/app/channels/connection.rb
+   - test2.html
+
+2. Fichiers à modifier :
+   - api/config/initializers/cors.rb (ajout des origines pour WebSocket)
+   - api/config/environments/development.rb (configuration Action Cable)
+
+3. Pour revenir en arrière :
+   - Supprimer api/app/channels/application_cable.rb
+   - Supprimer api/app/channels/ping_channel.rb
+   - Supprimer api/app/channels/connection.rb
+   - Supprimer test2.html
+   - Restaurer api/config/initializers/cors.rb à son état d'origine
+   - Restaurer api/config/environments/development.rb à son état d'origine 
