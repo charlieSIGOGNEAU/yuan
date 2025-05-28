@@ -83,47 +83,44 @@
                 }
 
                 if (cable && cable.connection && cable.connection.isOpen()) {
-                    debugLog("ActionCable connection already open.");
+                    debugLog("ActionCable connection is ALREADY open.");
                     wsStatusSpan.textContent = "connecté (AC)";
                     return;
                 }
 
-                debugLog("Attempting to connect ActionCable with token...");
-                wsStatusSpan.textContent = "connexion (AC)...";
+                debugLog("Attempting to connect ActionCable (SIMPLIFIED, NO TOKEN)...");
+                wsStatusSpan.textContent = "connexion simplifiée (AC)...";
                 
-                if (cable) { // Si une précédente instance existe, la déconnecter proprement
+                if (cable) {
                     cable.disconnect();
                 }
-                cable = ActionCable.createConsumer(`ws://localhost:3000/cable?token=${token}`);
+                // Connexion SANS le token pour l'instant
+                cable = ActionCable.createConsumer(`ws://localhost:3000/cable`); 
 
-                // On ne s'abonne plus à un channel générique ici.
-                // L'abonnement se fera après avoir rejoint une partie.
-                // Pour tester la connexion de base d'ActionCable, on peut écouter les événements du consumer:
+                debugLog("ActionCable.createConsumer (simplified) called. Inspecting 'cable' object:");
+                console.log(cable);
+                debugLog("Inspecting 'cable.connection' (simplified) object:");
+                console.log(cable.connection);
+
                 if (cable && cable.connection) {
                     cable.connection.onopen = () => {
-                        debugLog("ActionCable connection established.");
-                        wsStatusSpan.textContent = "connecté (AC)";
+                        debugLog("SUCCESS: ActionCable connection.onopen event triggered!");
+                        wsStatusSpan.textContent = "connecté (AC) - SIMPLIFIÉ";
                     };
                     cable.connection.onclose = () => {
-                        debugLog("ActionCable connection closed.");
-                        wsStatusSpan.textContent = "déconnecté (AC)";
-                        // Gérer la reconnexion si nécessaire et si le token est toujours valide
-                        if (localStorage.getItem(JWT_KEY)) { 
-                            debugLog("Attempting to reconnect ActionCable in 3 seconds...");
-                            setTimeout(() => connectWebSocketWithToken(localStorage.getItem(JWT_KEY)), 3000);
-                        }
+                        debugLog("EVENT: ActionCable connection.onclose event triggered.");
+                        wsStatusSpan.textContent = "déconnecté (AC) - SIMPLIFIÉ";
+                        // Pas de reconnexion automatique pour ce test simplifié
                     };
-                    cable.connection.onerror = (error) => {
-                        debugLog("ActionCable connection error: " + JSON.stringify(error));
-                        wsStatusSpan.textContent = "erreur connexion (AC)";
+                    cable.connection.onerror = (errorEvent) => {
+                        debugLog("ERROR: ActionCable connection.onerror event triggered. See browser console for details.");
+                        console.error("ActionCable WebSocket Error Event (simplified test):", errorEvent);
+                        wsStatusSpan.textContent = "erreur connexion (AC) - SIMPLIFIÉ";
                     };
                 } else {
-                    debugLog("Failed to create ActionCable consumer or connection object.");
-                    wsStatusSpan.textContent = "erreur init (AC)";
+                    debugLog("Failed to create ActionCable consumer or connection object (simplified test).");
+                    wsStatusSpan.textContent = "erreur init (AC) - SIMPLIFIÉ";
                 }
-
-                // L'ancien code d'abonnement direct est supprimé d'ici.
-                // L'abonnement se fera via subscribeToGameChannel(gameId)
             }
 
             function subscribeToGameChannel(gameId) {

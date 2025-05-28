@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test ActionCable Minimal</title>
+    <!-- <script src="./actioncable.js"></script> --> <!-- Utilisation du CDN ci-dessous -->
+    <script src="https://cdn.jsdelivr.net/npm/@rails/actioncable@7.1.3/app/assets/javascripts/actioncable.js"></script>
+</head>
+<body>
+    <h1>Test ActionCable Minimal (via CDN)</h1>
+    <p>Statut: <span id="status">En attente...</span></p>
+    <div id="logs"></div>
+
+    <script>
+        const statusSpan = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        function log(message) {
+            console.log(message);
+            // Utilisation de guillemets simples pour la chaîne externe pour éviter les conflits avec les backticks internes.
+            logsDiv.innerHTML += '<p>[' + new Date().toLocaleTimeString() + '] ' + message + '</p>';
+        }
+
+        log("Script de test démarré.");
+
+        if (typeof ActionCable === 'undefined') {
+            log("ERREUR CRITIQUE: ActionCable n'est pas défini. Vérifiez le chargement de actioncable.js.");
+            statusSpan.textContent = "Erreur: ActionCable indéfini";
+        } else {
+            log("ActionCable est défini. Tentative de création du consumer...");
+            statusSpan.textContent = "Création du consumer...";
+
+            try {
+                const cable = ActionCable.createConsumer('ws://localhost:3000/cable');
+                log("ActionCable.createConsumer appelé. Objet cable créé:");
+                console.log(cable);
+                statusSpan.textContent = "Consumer créé. Vérification de la connexion...";
+
+                if (cable && cable.connection) {
+                    log("Objet cable.connection existe:");
+                    console.log(cable.connection);
+
+                    cable.connection.onopen = () => {
+                        log("***** CONNECTION.ONOPEN déclenché ! *****");
+                        statusSpan.textContent = "Connecté ! (connection.onopen)";
+                    };
+
+                    cable.connection.onclose = (event) => {
+                        log("***** CONNECTION.ONCLOSE déclenché ! *****");
+                        console.log("Détails de l'événement CONNECTION.ONCLOSE:", event);
+                        statusSpan.textContent = "Déconnecté. (connection.onclose)";
+                    };
+
+                    cable.connection.onerror = (error) => {
+                        log("***** CONNECTION.ONERROR déclenché ! *****");
+                        console.error("Détails de l'erreur CONNECTION.ONERROR:", error);
+                        statusSpan.textContent = "Erreur de connexion. (connection.onerror)";
+                    };
+                    
+                    log("Gestionnaires d'événements connection.onopen/onclose/onerror attachés.");
+                    
+                    if (typeof cable.connection.open === 'function') {
+                        log("La méthode cable.connection.open existe.");
+                        // ActionCable s'occupe normalement d'appeler .open() en interne, 
+                        // souvent lorsqu'une première souscription est tentée ou automatiquement.
+                        // Un appel direct n'est généralement pas nécessaire et peut parfois interférer.
+                        log("La connexion devrait s'ouvrir automatiquement ou lors du premier abonnement.");
+                    } else {
+                        log("cable.connection.open n'est pas une fonction.");
+                    }
+
+                    log("Tentative de création d'un abonnement de test...");
+                    try {
+                        const subscription = cable.subscriptions.create("TestChannel", {
+                            connected: () => {
+                                log("***** TEST CHANNEL SUBSCRIPTION: CONNECTED callback déclenché! *****");
+                                statusSpan.textContent = "Abonné à TestChannel!"; // Ne devrait pas arriver
+                            },
+                            disconnected: (event) => {
+                                log("***** TEST CHANNEL SUBSCRIPTION: DISCONNECTED callback déclenché! *****");
+                                console.log("Détails de l'événement SUBSCRIPTION.DISCONNECTED:", event);
+                                statusSpan.textContent = "Abonnement TestChannel déconnecté.";
+                            },
+                            rejected: () => {
+                                log("***** TEST CHANNEL SUBSCRIPTION: REJECTED callback déclenché! *****");
+                                statusSpan.textContent = "Abonnement TestChannel rejeté.";
+                            },
+                            received: (data) => {
+                                log("TEST CHANNEL SUBSCRIPTION: Données reçues: " + JSON.stringify(data));
+                            }
+                        });
+                        log("cable.subscriptions.create('TestChannel') appelé. Objet subscription:");
+                        console.log(subscription);
+                    } catch (e) {
+                        log("ERREUR lors de la création de l'abonnement TestChannel: " + e.message);
+                        console.error(e);
+                    }
+
+                } else {
+                    log("ERREUR: cable.connection est nul ou indéfini après createConsumer.");
+                    statusSpan.textContent = "Erreur init (cable.connection)";
+                }
+            } catch (e) {
+                log("ERREUR CRITIQUE lors de ActionCable.createConsumer ou de la configuration: " + e.message);
+                console.error(e);
+                statusSpan.textContent = "Erreur critique JS.";
+            }
+        }
+    </script>
+</body>
+</html> 

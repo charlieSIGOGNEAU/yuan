@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test ActionCable API2</title>
+    <script src="https://cdn.jsdelivr.net/npm/@rails/actioncable@7.1.3/app/assets/javascripts/actioncable.js"></script>
+</head>
+<body>
+    <h1>Test ActionCable API2 (via CDN)</h1>
+    <p>Statut: <span id="status">En attente...</span></p>
+    <div id="logs"></div>
+
+    <script>
+        const statusSpan = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+
+        function log(message) {
+            console.log(message);
+            logsDiv.innerHTML += '<p>[' + new Date().toLocaleTimeString() + '] ' + message + '</p>';
+        }
+
+        log("Script de test pour API2 démarré.");
+
+        if (typeof ActionCable === 'undefined') {
+            log("ERREUR CRITIQUE: ActionCable n'est pas défini.");
+            statusSpan.textContent = "Erreur: ActionCable indéfini";
+        } else {
+            log("ActionCable est défini. Tentative de création du consumer pour API2 (ws://localhost:3001/cable)...");
+            statusSpan.textContent = "Création du consumer...";
+
+            try {
+                // IMPORTANT: Connexion au port 3001 pour api2
+                const cable = ActionCable.createConsumer('ws://localhost:3001/cable');
+                log("ActionCable.createConsumer (API2) appelé. Objet cable créé:");
+                console.log(cable);
+                statusSpan.textContent = "Consumer API2 créé. Vérification de la connexion...";
+
+                if (cable && cable.connection) {
+                    log("Objet cable.connection (API2) existe:");
+                    console.log(cable.connection);
+
+                    cable.connection.onopen = () => {
+                        log("***** API2 CONNECTION.ONOPEN déclenché ! *****");
+                        statusSpan.textContent = "Connecté à API2 ! (connection.onopen)";
+                    };
+
+                    cable.connection.onclose = (event) => {
+                        log("***** API2 CONNECTION.ONCLOSE déclenché ! *****");
+                        console.log("Détails de l'événement API2 CONNECTION.ONCLOSE:", event);
+                        statusSpan.textContent = "Déconnecté de API2. (connection.onclose)";
+                    };
+
+                    cable.connection.onerror = (error) => {
+                        log("***** API2 CONNECTION.ONERROR déclenché ! *****");
+                        console.error("Détails de l'erreur API2 CONNECTION.ONERROR:", error);
+                        statusSpan.textContent = "Erreur de connexion API2. (connection.onerror)";
+                    };
+                    
+                    log("Gestionnaires d'événements API2 connection.onopen/onclose/onerror attachés.");
+
+                    log("Tentative de création d'un abonnement de test à TestChannel (API2)...");
+                    try {
+                        const subscription = cable.subscriptions.create("TestChannel", {
+                            connected: () => {
+                                log("***** API2 TEST CHANNEL SUBSCRIPTION: CONNECTED callback déclenché! *****");
+                                statusSpan.textContent = "Abonné à TestChannel (API2)!";
+                            },
+                            disconnected: (event) => {
+                                log("***** API2 TEST CHANNEL SUBSCRIPTION: DISCONNECTED callback déclenché! *****");
+                                console.log("Détails de l'événement API2 SUBSCRIPTION.DISCONNECTED:", event);
+                                statusSpan.textContent = "Abonnement TestChannel (API2) déconnecté.";
+                            },
+                            rejected: () => {
+                                log("***** API2 TEST CHANNEL SUBSCRIPTION: REJECTED callback déclenché! *****");
+                                statusSpan.textContent = "Abonnement TestChannel (API2) rejeté.";
+                            },
+                            received: (data) => {
+                                log("API2 TEST CHANNEL SUBSCRIPTION: Données reçues: " + JSON.stringify(data));
+                            }
+                        });
+                        log("cable.subscriptions.create('TestChannel') (API2) appelé. Objet subscription:");
+                        console.log(subscription);
+                    } catch (e) {
+                        log("ERREUR lors de la création de l'abonnement TestChannel (API2): " + e.message);
+                        console.error(e);
+                    }
+
+                } else {
+                    log("ERREUR: cable.connection (API2) est nul ou indéfini après createConsumer.");
+                    statusSpan.textContent = "Erreur init API2 (cable.connection)";
+                }
+            } catch (e) {
+                log("ERREUR CRITIQUE lors de ActionCable.createConsumer (API2) ou de la configuration: " + e.message);
+                console.error(e);
+                statusSpan.textContent = "Erreur critique JS (API2).";
+            }
+        }
+    </script>
+</body>
+</html> 
