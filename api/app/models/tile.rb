@@ -1,2 +1,5 @@
 class Tile < ApplicationRecord
-end
+    belongs_to :game_user
+    belongs_to :game
+  end 
+  

@@ -8,6 +8,12 @@ Rails.application.routes.draw do
   # Mount Action Cable server
   mount ActionCable.server => '/cable'
 
+  # Authentication route
+  post '/auth/login', to: 'authentication#login'
+
+  # Game routes
+  post '/games/quick_game', to: 'games#quick_game'
+
   # Defines the root path route ("/")
   # root "posts#index"
 end

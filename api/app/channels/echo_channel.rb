@@ -2,19 +2,22 @@ class EchoChannel < ApplicationCable::Channel
   def subscribed
     # stream_from "some_channel"
     stream_from "echo_channel"
-    Rails.logger.info "Client subscribed to echo_channel"
+    Rails.logger.info "Client #{current_user ? current_user.name : 'Guest'} subscribed to echo_channel"
   end
 
   def receive(data)
     name_received = data["name"]
-    Rails.logger.info "Received name: '#{name_received}' on echo_channel"
+    # Utiliser current_user.name si disponible, sinon le nom reçu pour le log
+    user_identifier = current_user ? current_user.name : "(unauthenticated user)"
+    Rails.logger.info "User '#{user_identifier}' sent name: '#{name_received}' on echo_channel"
 
     if name_received.present?
-      # Enregistrer le nom dans la base de données
+      # L'enregistrement du nom peut être lié à l'utilisateur si vous le souhaitez
+      # Par exemple: Test.create(name: name_received, user: current_user) si Test a une association user
       test_record = Test.create(name: name_received)
 
       if test_record.persisted?
-        Rails.logger.info "Saved to DB: #{test_record.inspect}"
+        Rails.logger.info "Saved to DB: #{test_record.inspect} (by #{user_identifier})"
         # Attendre 1 seconde
         sleep 1
 
@@ -27,18 +30,18 @@ class EchoChannel < ApplicationCable::Channel
         ActionCable.server.broadcast("echo_channel", { error: error_message })
       end
     else
-      Rails.logger.warn "Received empty name"
+      Rails.logger.warn "User '#{user_identifier}' sent empty name"
       # Optionnel: informer le client
       ActionCable.server.broadcast("echo_channel", { error: "Name cannot be empty" })
     end
   rescue => e # Ajout d'un rescue pour capturer d'éventuelles erreurs pendant le traitement
-    Rails.logger.error "Error in EchoChannel#receive: #{e.message}"
+    Rails.logger.error "Error in EchoChannel#receive for user '#{current_user ? current_user.id : 'guest'}': #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
     ActionCable.server.broadcast("echo_channel", { error: "An internal server error occurred." })
   end
 
   def unsubscribed
     # Any cleanup needed when channel is unsubscribed
-    Rails.logger.info "Client unsubscribed from echo_channel"
+    Rails.logger.info "Client #{current_user ? current_user.name : 'Guest'} unsubscribed from echo_channel"
   end
 end
