@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebSocket - ActionCable</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        input[type="text"] {
+            width: 300px;
+            padding: 5px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Connexion WebSocket ActionCable</h1>
+    
+    <div id="status" class="status disconnected">
+        Statut: Déconnecté
+    </div>
+
+    <div>
+        <button id="connectBtn" onclick="connectWebSocket()">Se connecter</button>
+        <button id="disconnectBtn" onclick="disconnectWebSocket()" disabled>Se déconnecter</button>
+        <button id="pingBtn" onclick="sendPing()" disabled>Test Ping</button>
+    </div>
+
+    <div>
+        <input type="text" id="messageInput" placeholder="Tapez votre message ici..." disabled>
+        <button id="sendBtn" onclick="sendMessage()" disabled>Envoyer</button>
+    </div>
+
+    <div>
+        <label>
+            <input type="checkbox" id="autoPingCheckbox" onchange="toggleAutoPing()"> 
+            Ping automatique toutes les 10 secondes
+        </label>
+        <span id="connectionTime" style="margin-left: 20px; font-weight: bold;"></span>
+    </div>
+
+    <h3>Logs de connexion:</h3>
+    <div id="log" class="log"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@rails/actioncable@7.0.0/app/assets/javascripts/actioncable.js"></script>
+    <script>
+        let cable;
+        let subscription;
+        let connected = false;
+        let autoPingInterval = null;
+        let connectionStartTime = null;
+        let connectionTimerInterval = null;
+        let pingStartTime = null;
+
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const pingBtn = document.getElementById('pingBtn');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const autoPingCheckbox = document.getElementById('autoPingCheckbox');
+        const connectionTimeSpan = document.getElementById('connectionTime');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[WebSocket] ${message}`);
+        }
+
+        function updateStatus(isConnected) {
+            connected = isConnected;
+            if (isConnected) {
+                connectionStartTime = new Date();
+                statusDiv.textContent = 'Statut: Connecté';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                pingBtn.disabled = false;
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                
+                // Démarrer le timer de connexion
+                updateConnectionTimer();
+                connectionTimerInterval = setInterval(updateConnectionTimer, 1000);
+            } else {
+                connectionStartTime = null;
+                statusDiv.textContent = 'Statut: Déconnecté';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                pingBtn.disabled = true;
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+                autoPingCheckbox.checked = false;
+                autoPingCheckbox.disabled = false;
+                
+                // Arrêter les timers
+                stopAutoPing();
+                if (connectionTimerInterval) {
+                    clearInterval(connectionTimerInterval);
+                    connectionTimerInterval = null;
+                }
+                connectionTimeSpan.textContent = '';
+            }
+        }
+
+        function updateConnectionTimer() {
+            if (connectionStartTime) {
+                const now = new Date();
+                const diffInSeconds = Math.floor((now - connectionStartTime) / 1000);
+                const minutes = Math.floor(diffInSeconds / 60);
+                const seconds = diffInSeconds % 60;
+                connectionTimeSpan.textContent = `Connecté depuis: ${minutes}m ${seconds}s`;
+                connectionTimeSpan.style.color = '#155724';
+            }
+        }
+
+        function connectWebSocket() {
+            try {
+                log('🔄 Tentative de connexion...');
+                
+                // Créer la connexion ActionCable
+                cable = ActionCable.createConsumer('ws://localhost:3000/cable');
+                
+                log('📡 Consumer ActionCable créé');
+
+                // S'abonner au canal de test
+                subscription = cable.subscriptions.create('TestChannel', {
+                    connected() {
+                        log('✅ Connecté au TestChannel');
+                        updateStatus(true);
+                    },
+
+                    disconnected() {
+                        log('❌ Déconnecté du TestChannel');
+                        updateStatus(false);
+                    },
+
+                    received(data) {
+                        log(`📨 Message reçu: ${JSON.stringify(data)}`);
+                        
+                        // Traitement spécial pour les pongs
+                        if (data.type === 'pong') {
+                            const latency = new Date() - pingStartTime;
+                            log(`🏓 SERVEUR → CLIENT: Pong reçu ! Latence: ${latency}ms`);
+                            connectionTimeSpan.style.color = latency < 100 ? '#155724' : (latency < 500 ? '#856404' : '#721c24');
+                        }
+                        
+                        // Traitement des pings du serveur
+                        if (data.type === 'server_ping') {
+                            log(`📡 SERVEUR → CLIENT: Ping du serveur reçu ! Envoi de la réponse automatique...`);
+                            
+                            // Répondre automatiquement au ping du serveur
+                            subscription.perform('server_pong', {
+                                received_at: new Date().toISOString(),
+                                original_message: data
+                            });
+                        }
+                        
+                        // Traitement de la réponse au ping du serveur
+                        if (data.type === 'server_pong_ack') {
+                            log(`✅ SERVEUR → CLIENT: Confirmation - Le serveur a reçu notre réponse`);
+                        }
+                    }
+                });
+
+            } catch (error) {
+                log(`❌ Erreur de connexion: ${error.message}`);
+                updateStatus(false);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (subscription) {
+                subscription.unsubscribe();
+                log('🔌 Déconnexion demandée');
+            }
+            if (cable) {
+                cable.disconnect();
+                cable = null;
+            }
+            updateStatus(false);
+        }
+
+        function sendMessage() {
+            if (!connected || !subscription) {
+                log('❌ Pas de connexion active');
+                return;
+            }
+
+            const message = messageInput.value.trim();
+            if (!message) {
+                log('❌ Message vide');
+                return;
+            }
+
+            log(`📤 Envoi du message: "${message}"`);
+            subscription.perform('receive', { message: message });
+            messageInput.value = '';
+        }
+
+        function sendPing() {
+            if (!connected || !subscription) {
+                log('❌ Pas de connexion active');
+                return;
+            }
+
+            log('📤 CLIENT → SERVEUR: Envoi du ping');
+            subscription.perform('ping');
+            pingStartTime = new Date();
+        }
+
+        function toggleAutoPing() {
+            if (autoPingCheckbox.checked) {
+                startAutoPing();
+            } else {
+                stopAutoPing();
+            }
+        }
+
+        function startAutoPing() {
+            if (!connected || !subscription) {
+                log('❌ Pas de connexion active');
+                return;
+            }
+
+            log('🔄 Démarrage du ping automatique');
+            autoPingCheckbox.disabled = true;
+            sendPing();
+
+            connectionTimeSpan.textContent = 'En cours...';
+            connectionTimeSpan.style.fontWeight = 'bold';
+
+            autoPingInterval = setInterval(() => {
+                sendPing();
+            }, 10000);
+        }
+
+        function stopAutoPing() {
+            if (autoPingInterval) {
+                clearInterval(autoPingInterval);
+                autoPingInterval = null;
+            }
+            autoPingCheckbox.disabled = false;
+            connectionTimeSpan.textContent = 'Ping automatique arrêté';
+            connectionTimeSpan.style.fontWeight = 'normal';
+        }
+
+        // Envoyer un message avec Enter
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Log initial
+        log('🚀 Page chargée, prêt à se connecter');
+    </script>
+</body>
+</html> 

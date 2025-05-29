@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Authentification JWT + ActionCable</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Test Authentification JWT + ActionCable</h1>
+
+    <!-- Section Authentification -->
+    <div class="container">
+        <h2>1. Authentification</h2>
+        <div id="user-info" style="display: none;">
+            <div class="success">
+                <strong>Connecté en tant que:</strong> <span id="user-name"></span> (<span id="user-email"></span>)
+                <br><strong>User ID:</strong> <span id="user-id"></span>
+                <br><strong>Token JWT:</strong> 
+                <details style="margin-top: 5px;">
+                    <summary style="cursor: pointer; color: #007bff;">Voir le token complet</summary>
+                    <div id="user-token" style="font-family: monospace; font-size: 10px; word-break: break-all; margin-top: 5px; padding: 5px; background: #f8f9fa; border-radius: 3px;"></div>
+                </details>
+            </div>
+        </div>
+        
+        <div id="auth-forms">
+            <h3>Créer un utilisateur de test</h3>
+            <div class="form-group">
+                <label for="create-name">Nom:</label>
+                <input type="text" id="create-name" placeholder="Votre nom">
+            </div>
+            <div class="form-group">
+                <label for="create-email">Email:</label>
+                <input type="email" id="create-email" placeholder="votre@email.com">
+            </div>
+            <button onclick="createTestUser()">Créer utilisateur</button>
+
+            <h3>Connexion rapide</h3>
+            <div class="form-group">
+                <label for="login-email">Email:</label>
+                <input type="email" id="login-email" placeholder="email@example.com">
+            </div>
+            <button onclick="quickLogin()">Connexion rapide</button>
+        </div>
+        
+        <button onclick="logout()" id="logout-btn" style="display: none; background-color: #dc3545;">Déconnexion</button>
+    </div>
+
+    <!-- Section WebSocket -->
+    <div class="container">
+        <h2>2. Connexion WebSocket</h2>
+        <div class="status disconnected" id="ws-status">Déconnecté</div>
+        <button onclick="connectWebSocket()" id="connect-btn" disabled>Se connecter au WebSocket</button>
+        <button onclick="disconnectWebSocket()" id="disconnect-btn" disabled>Se déconnecter</button>
+    </div>
+
+    <!-- Section Test Channel -->
+    <div class="container">
+        <h2>3. Test Channel</h2>
+        <button onclick="subscribeToTestChannel()" id="subscribe-test-btn" disabled>S'abonner au Test Channel</button>
+        <button onclick="sendPing()" id="ping-btn" disabled>Envoyer Ping</button>
+        <button onclick="unsubscribeFromTestChannel()" id="unsubscribe-test-btn" disabled>Se désabonner</button>
+    </div>
+
+    <!-- Section Game Channel -->
+    <div class="container">
+        <h2>4. Game Channel</h2>
+        <div class="form-group">
+            <label for="game-id">ID de la partie:</label>
+            <input type="number" id="game-id" placeholder="1">
+        </div>
+        <button onclick="createGame()" id="create-game-btn" disabled>Créer/Rejoindre une partie</button>
+        <button onclick="subscribeToGameChannel()" id="subscribe-game-btn" disabled>S'abonner à la partie</button>
+        <button onclick="sendGameMessage()" id="send-message-btn" disabled>Envoyer message</button>
+        <button onclick="unsubscribeFromGameChannel()" id="unsubscribe-game-btn" disabled>Se désabonner</button>
+    </div>
+
+    <!-- Section Logs -->
+    <div class="container">
+        <h2>5. Logs</h2>
+        <button onclick="clearLogs()">Effacer les logs</button>
+        <div id="logs" class="log"></div>
+    </div>
+
+    <script src="actioncable.js"></script>
+    <script>
+        let currentUser = null;
+        let token = null;
+        let cable = null;
+        let testChannel = null;
+        let gameChannel = null;
+
+        const API_BASE = 'http://localhost:3000';
+        const WS_URL = 'ws://localhost:3000/cable';
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('logs');
+            const colorClass = type === 'error' ? 'color: red;' : type === 'success' ? 'color: green;' : 'color: black;';
+            logElement.innerHTML += `<div style="${colorClass}">[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function showMessage(message, isError = false) {
+            const div = document.createElement('div');
+            div.className = isError ? 'error' : 'success';
+            div.textContent = message;
+            document.querySelector('.container').appendChild(div);
+            setTimeout(() => div.remove(), 5000);
+        }
+
+        async function createTestUser() {
+            const name = document.getElementById('create-name').value;
+            const email = document.getElementById('create-email').value;
+
+            if (!name || !email) {
+                showMessage('Nom et email requis', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/create_test_user`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.user;
+                    token = data.token;
+                    updateUI();
+                    log(`Utilisateur créé: ${data.user.name}`, 'success');
+                    showMessage(`Utilisateur créé avec succès: ${data.user.name}`);
+                } else {
+                    log(`Erreur création: ${data.errors?.join(', ') || data.error}`, 'error');
+                    showMessage(data.errors?.join(', ') || data.error, true);
+                }
+            } catch (error) {
+                log(`Erreur réseau: ${error.message}`, 'error');
+                showMessage(`Erreur réseau: ${error.message}`, true);
+            }
+        }
+
+        async function quickLogin() {
+            const email = document.getElementById('login-email').value;
+
+            if (!email) {
+                showMessage('Email requis', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/quick_login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.user;
+                    token = data.token;
+                    updateUI();
+                    log(`Connexion réussie: ${data.user.name}`, 'success');
+                    showMessage(`Connecté en tant que: ${data.user.name}`);
+                } else {
+                    log(`Erreur connexion: ${data.error}`, 'error');
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                log(`Erreur réseau: ${error.message}`, 'error');
+                showMessage(`Erreur réseau: ${error.message}`, true);
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            token = null;
+            disconnectWebSocket();
+            updateUI();
+            log('Déconnexion', 'info');
+        }
+
+        function updateUI() {
+            const isAuthenticated = !!currentUser;
+            
+            // Affichage utilisateur
+            document.getElementById('user-info').style.display = isAuthenticated ? 'block' : 'none';
+            document.getElementById('auth-forms').style.display = isAuthenticated ? 'none' : 'block';
+            document.getElementById('logout-btn').style.display = isAuthenticated ? 'block' : 'none';
+            
+            if (isAuthenticated) {
+                document.getElementById('user-name').textContent = currentUser.name;
+                document.getElementById('user-email').textContent = currentUser.email;
+                document.getElementById('user-id').textContent = currentUser.id;
+                document.getElementById('user-token').textContent = token;
+            }
+            
+            // Boutons WebSocket
+            document.getElementById('connect-btn').disabled = !isAuthenticated || !!cable;
+            document.getElementById('disconnect-btn').disabled = !cable;
+            
+            // Boutons channels
+            const isConnected = !!cable;
+            document.getElementById('subscribe-test-btn').disabled = !isConnected || !!testChannel;
+            document.getElementById('ping-btn').disabled = !testChannel;
+            document.getElementById('unsubscribe-test-btn').disabled = !testChannel;
+            
+            document.getElementById('create-game-btn').disabled = !isAuthenticated;
+            document.getElementById('subscribe-game-btn').disabled = !isConnected || !!gameChannel;
+            document.getElementById('send-message-btn').disabled = !gameChannel;
+            document.getElementById('unsubscribe-game-btn').disabled = !gameChannel;
+        }
+
+        function connectWebSocket() {
+            if (!token) {
+                showMessage('Veuillez vous connecter d\'abord', true);
+                return;
+            }
+
+            const wsUrl = `${WS_URL}?token=${token}`;
+            log(`Tentative de connexion WebSocket vers: ${wsUrl}`, 'info');
+            log(`Token utilisé: ${token.substring(0, 20)}...`, 'info');
+            
+            try {
+                cable = ActionCable.createConsumer(wsUrl);
+                
+                cable.connection.onopen = () => {
+                    log('WebSocket connecté avec succès ✅', 'success');
+                    document.getElementById('ws-status').textContent = 'Connecté';
+                    document.getElementById('ws-status').className = 'status connected';
+                    updateUI();
+                };
+                
+                cable.connection.onclose = (event) => {
+                    log(`WebSocket déconnecté - Code: ${event.code}, Raison: ${event.reason}`, 'info');
+                    document.getElementById('ws-status').textContent = 'Déconnecté';
+                    document.getElementById('ws-status').className = 'status disconnected';
+                    cable = null;
+                    testChannel = null;
+                    gameChannel = null;
+                    updateUI();
+                };
+                
+                cable.connection.onerror = (error) => {
+                    log(`Erreur WebSocket: ${JSON.stringify(error)}`, 'error');
+                };
+                
+                // Ajouter un timeout pour détecter les connexions qui traînent
+                setTimeout(() => {
+                    if (cable && cable.connection.state !== 'open') {
+                        log(`Timeout: La connexion WebSocket n'est pas ouverte après 5s (état: ${cable.connection.state})`, 'error');
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                log(`Erreur lors de la création de la connexion: ${error.message}`, 'error');
+                showMessage(`Erreur WebSocket: ${error.message}`, true);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (cable) {
+                testChannel = null;
+                gameChannel = null;
+                cable.disconnect();
+                cable = null;
+                log('WebSocket déconnecté manuellement', 'info');
+            }
+            updateUI();
+        }
+
+        function subscribeToTestChannel() {
+            if (!cable) {
+                showMessage('WebSocket non connecté', true);
+                return;
+            }
+
+            log('Abonnement au Test Channel...', 'info');
+            
+            testChannel = cable.subscriptions.create("TestChannel", {
+                connected() {
+                    log('Connecté au Test Channel', 'success');
+                    updateUI();
+                },
+                
+                disconnected() {
+                    log('Déconnecté du Test Channel', 'info');
+                    testChannel = null;
+                    updateUI();
+                },
+                
+                received(data) {
+                    log(`Message reçu du Test Channel: ${JSON.stringify(data)}`, 'success');
+                    
+                    if (data.type === 'server_ping') {
+                        // Répondre automatiquement au ping du serveur
+                        this.perform('server_pong', { 
+                            message: 'Pong du client!',
+                            timestamp: new Date().toISOString()
+                        });
+                        log('Réponse automatique au ping serveur envoyée', 'info');
+                    }
+                }
+            });
+        }
+
+        function sendPing() {
+            if (!testChannel) {
+                showMessage('Non abonné au Test Channel', true);
+                return;
+            }
+
+            log('Envoi d\'un ping...', 'info');
+            testChannel.perform('ping', { 
+                message: 'Ping du client!',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function unsubscribeFromTestChannel() {
+            if (testChannel) {
+                testChannel.unsubscribe();
+                testChannel = null;
+                log('Désabonnement du Test Channel', 'info');
+                updateUI();
+            }
+        }
+
+        async function createGame() {
+            if (!token) {
+                showMessage('Veuillez vous connecter d\'abord', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/games`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`Partie créée/rejointe: ${data.game.id}`, 'success');
+                    showMessage(`Partie ${data.game.id} prête (${data.game.current_players}/${data.game.player_count} joueurs)`);
+                    document.getElementById('game-id').value = data.game.id;
+                } else {
+                    log(`Erreur création partie: ${data.error}`, 'error');
+                    showMessage(data.error, true);
+                }
+            } catch (error) {
+                log(`Erreur réseau: ${error.message}`, 'error');
+                showMessage(`Erreur réseau: ${error.message}`, true);
+            }
+        }
+
+        function subscribeToGameChannel() {
+            if (!cable) {
+                showMessage('WebSocket non connecté', true);
+                return;
+            }
+
+            const gameId = document.getElementById('game-id').value;
+            if (!gameId) {
+                showMessage('ID de partie requis', true);
+                return;
+            }
+
+            log(`Abonnement à la partie ${gameId}...`, 'info');
+            
+            gameChannel = cable.subscriptions.create({
+                channel: "GameChannel", 
+                game_id: gameId
+            }, {
+                connected() {
+                    log(`Connecté à la partie ${gameId}`, 'success');
+                    updateUI();
+                },
+                
+                disconnected() {
+                    log(`Déconnecté de la partie ${gameId}`, 'info');
+                    gameChannel = null;
+                    updateUI();
+                },
+                
+                received(data) {
+                    log(`Message reçu de la partie: ${JSON.stringify(data)}`, 'success');
+                },
+
+                rejected() {
+                    log(`Connexion à la partie ${gameId} rejetée`, 'error');
+                    gameChannel = null;
+                    updateUI();
+                }
+            });
+        }
+
+        function sendGameMessage() {
+            if (!gameChannel) {
+                showMessage('Non abonné à une partie', true);
+                return;
+            }
+
+            const message = `Message de test de ${currentUser.name} à ${new Date().toLocaleTimeString()}`;
+            log('Envoi d\'un message de jeu...', 'info');
+            gameChannel.perform('send_message', { message });
+        }
+
+        function unsubscribeFromGameChannel() {
+            if (gameChannel) {
+                gameChannel.unsubscribe();
+                gameChannel = null;
+                log('Désabonnement de la partie', 'info');
+                updateUI();
+            }
+        }
+
+        // Initialisation
+        updateUI();
+        log('Application initialisée', 'info');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test JWT + GameChannel - Connexion aux Parties</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .auth-panel {
+            background-color: #f8f9fa;
+            border: 2px solid #007bff;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .authenticated {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        input, select {
+            width: 200px;
+            padding: 5px;
+            margin: 5px;
+        }
+        .game-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .token-display {
+            font-family: monospace;
+            font-size: 10px;
+            word-break: break-all;
+            background: #f8f9fa;
+            padding: 5px;
+            border-radius: 3px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Test JWT + GameChannel - Connexion Authentifiée aux Parties</h1>
+    
+    <!-- Section Authentification JWT -->
+    <div class="panel auth-panel full-width">
+        <h2>🔐 1. Authentification JWT</h2>
+        <div class="container">
+            <div>
+                <h3>Connexion rapide</h3>
+                <select id="authUserSelect">
+                    <option value="">Choisir un utilisateur...</option>
+                    <option value="user1@test.com">user1@test.com</option>
+                    <option value="user2@test.com">user2@test.com</option>
+                    <option value="user3@test.com">user3@test.com</option>
+                    <option value="user4@test.com">user4@test.com</option>
+                    <option value="user5@test.com">user5@test.com</option>
+                    <option value="user6@test.com">user6@test.com</option>
+                </select>
+                <button id="authBtn" onclick="authenticateUser()">S'authentifier</button>
+                <button id="logoutBtn" onclick="logout()" disabled>Se déconnecter</button>
+            </div>
+            <div>
+                <div id="authStatus" class="status disconnected">Non authentifié</div>
+                <div id="userInfo" style="display: none;">
+                    <strong>Utilisateur:</strong> <span id="userName"></span><br>
+                    <strong>ID:</strong> <span id="userId"></span><br>
+                    <strong>Token:</strong>
+                    <div id="userToken" class="token-display"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div style="background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h3>🧪 Tests d'isolation des canaux avec JWT :</h3>
+        <ul>
+            <li><strong>1. Authentification :</strong> Choisissez un utilisateur et authentifiez-vous</li>
+            <li><strong>2. Connexion WebSocket :</strong> Connectez-vous avec votre token JWT</li>
+            <li><strong>3. Test canal :</strong> Rejoignez une partie et testez les messages</li>
+            <li><strong>Test isolation :</strong> Ouvrez plusieurs onglets avec différents utilisateurs</li>
+        </ul>
+    </div>
+    
+    <div class="container">
+        <!-- Panneau de connexion WebSocket + Game -->
+        <div class="panel">
+            <h3>🔌 2. Connexion WebSocket + Partie</h3>
+            
+            <div>
+                <button id="wsConnectBtn" onclick="connectWebSocket()" disabled>Se connecter au WebSocket</button>
+                <button id="wsDisconnectBtn" onclick="disconnectWebSocket()" disabled>Se déconnecter WS</button>
+            </div>
+            
+            <div id="wsStatus" class="status disconnected">
+                WebSocket: Déconnecté
+            </div>
+
+            <hr>
+
+            <div>
+                <label>Partie:</label><br>
+                <select id="gameSelect">
+                    <option value="">Choisir une partie...</option>
+                    <option value="1">🎮 Partie 1</option>
+                    <option value="2">🎯 Partie 2</option>
+                    <option value="3">❌ Partie 3</option>
+                </select>
+                <button onclick="loadGames()">🔄 Recharger</button>
+            </div>
+
+            <div id="gameStatus" class="status disconnected">
+                Partie: Non connecté
+            </div>
+
+            <div>
+                <button id="gameConnectBtn" onclick="connectToGame()" disabled>Se connecter à la partie</button>
+                <button id="gameDisconnectBtn" onclick="disconnectFromGame()" disabled>Se déconnecter partie</button>
+            </div>
+
+            <div id="gameInfo" class="game-info" style="display: none;">
+                <h4>Informations de la partie:</h4>
+                <div id="gameDetails"></div>
+            </div>
+        </div>
+
+        <!-- Panneau de communication -->
+        <div class="panel">
+            <h3>💬 3. Communication</h3>
+            
+            <div>
+                <input type="text" id="chatInput" placeholder="Message de chat..." disabled>
+                <button id="sendChatBtn" onclick="sendChatMessage()" disabled>Envoyer</button>
+            </div>
+
+            <div>
+                <select id="actionSelect" disabled>
+                    <option value="">Choisir une action...</option>
+                    <option value="move_piece">Déplacer une pièce</option>
+                    <option value="roll_dice">Lancer les dés</option>
+                    <option value="end_turn">Terminer le tour</option>
+                </select>
+                <button id="sendActionBtn" onclick="sendGameAction()" disabled>Exécuter l'action</button>
+            </div>
+
+            <div>
+                <h4>Test du TestChannel:</h4>
+                <button id="testChannelBtn" onclick="subscribeToTestChannel()" disabled>S'abonner TestChannel</button>
+                <button id="pingBtn" onclick="sendPing()" disabled>Envoyer Ping</button>
+            </div>
+        </div>
+    </div>
+
+    <h3>📋 Logs de communication en temps réel:</h3>
+    <div id="log" class="log"></div>
+
+    <script src="actioncable.js"></script>
+    <!-- Fallback CDN si le fichier local ne fonctionne pas -->
+    <script>
+        // Fonction log temporaire pour éviter les erreurs
+        window.tempLog = function(msg) { console.log(msg); };
+        
+        if (typeof ActionCable === 'undefined') {
+            console.warn('ActionCable local non chargé, chargement depuis CDN...');
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/@rails/actioncable@7.0.0/app/assets/javascripts/actioncable.js';
+            script.onload = () => {
+                console.log('✅ ActionCable chargé depuis CDN');
+                window.actionCableLoaded = true;
+            };
+            script.onerror = () => {
+                console.log('❌ Erreur chargement ActionCable depuis CDN');
+            };
+            document.head.appendChild(script);
+        } else {
+            console.log('✅ ActionCable chargé localement');
+            window.actionCableLoaded = true;
+        }
+    </script>
+    <script>
+        // Variables globales
+        let currentUser = null;
+        let token = null;
+        let cable = null;
+        let gameSubscription = null;
+        let testSubscription = null;
+        let wsConnected = false;
+        let gameConnected = false;
+
+        const API_BASE = 'http://localhost:3000';
+        const WS_URL = 'ws://localhost:3000/cable';
+
+        // Elements DOM
+        const authBtn = document.getElementById('authBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const authStatus = document.getElementById('authStatus');
+        const userInfo = document.getElementById('userInfo');
+        const wsConnectBtn = document.getElementById('wsConnectBtn');
+        const wsDisconnectBtn = document.getElementById('wsDisconnectBtn');
+        const wsStatus = document.getElementById('wsStatus');
+        const gameConnectBtn = document.getElementById('gameConnectBtn');
+        const gameDisconnectBtn = document.getElementById('gameDisconnectBtn');
+        const gameStatus = document.getElementById('gameStatus');
+        const logDiv = document.getElementById('log');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[JWT+GameChannel] ${message}`);
+        }
+
+        function updateUI() {
+            const isAuth = !!currentUser;
+            const isWsConnected = wsConnected;
+            const isGameConnected = gameConnected;
+
+            // Authentification
+            authBtn.disabled = isAuth;
+            logoutBtn.disabled = !isAuth;
+
+            // WebSocket
+            wsConnectBtn.disabled = !isAuth || isWsConnected;
+            wsDisconnectBtn.disabled = !isWsConnected;
+
+            // Game
+            gameConnectBtn.disabled = !isWsConnected || isGameConnected;
+            gameDisconnectBtn.disabled = !isGameConnected;
+
+            // Communication
+            document.getElementById('chatInput').disabled = !isGameConnected;
+            document.getElementById('sendChatBtn').disabled = !isGameConnected;
+            document.getElementById('actionSelect').disabled = !isGameConnected;
+            document.getElementById('sendActionBtn').disabled = !isGameConnected;
+
+            // Test Channel
+            document.getElementById('testChannelBtn').disabled = !isWsConnected;
+            document.getElementById('pingBtn').disabled = !testSubscription;
+        }
+
+        async function authenticateUser() {
+            const email = document.getElementById('authUserSelect').value;
+            if (!email) {
+                log('❌ Veuillez sélectionner un utilisateur');
+                return;
+            }
+
+            try {
+                log(`🔐 Tentative d'authentification: ${email}`);
+                
+                const response = await fetch(`${API_BASE}/auth/quick_login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.user;
+                    token = data.token;
+                    
+                    authStatus.textContent = `Authentifié: ${currentUser.name}`;
+                    authStatus.className = 'status authenticated';
+                    
+                    document.getElementById('userName').textContent = currentUser.name;
+                    document.getElementById('userId').textContent = currentUser.id;
+                    document.getElementById('userToken').textContent = token;
+                    userInfo.style.display = 'block';
+                    
+                    log(`✅ Authentification réussie: ${currentUser.name} (ID: ${currentUser.id})`);
+                    log(`🔑 Token JWT généré`);
+                    updateUI();
+                } else {
+                    log(`❌ Erreur d'authentification: ${data.error}`);
+                }
+            } catch (error) {
+                log(`❌ Erreur réseau: ${error.message}`);
+            }
+        }
+
+        function logout() {
+            disconnectWebSocket();
+            currentUser = null;
+            token = null;
+            authStatus.textContent = 'Non authentifié';
+            authStatus.className = 'status disconnected';
+            userInfo.style.display = 'none';
+            log('🚪 Déconnexion');
+            updateUI();
+        }
+
+        function connectWebSocket() {
+            if (!token) {
+                log('❌ Pas de token JWT disponible');
+                return;
+            }
+
+            // Vérification ActionCable
+            if (typeof ActionCable === 'undefined') {
+                log('❌ ActionCable non disponible - Attendez le chargement...');
+                setTimeout(connectWebSocket, 1000); // Réessayer dans 1 seconde
+                return;
+            }
+
+            log('🔍 Vérification ActionCable...');
+            log(`📋 ActionCable disponible: ${typeof ActionCable}`);
+            log(`📋 ActionCable.createConsumer: ${typeof ActionCable.createConsumer}`);
+
+            try {
+                const wsUrl = `${WS_URL}?token=${token}`;
+                log(`🔌 Connexion WebSocket avec JWT: ${wsUrl}`);
+                log(`🔑 Token: ${token.substring(0, 30)}...`);
+                
+                // Création simple du consumer ActionCable
+                log('📡 Création du consumer ActionCable...');
+                cable = ActionCable.createConsumer(wsUrl);
+                
+                log(`📡 Consumer créé: ${!!cable}`);
+                log(`📡 Type du consumer: ${typeof cable}`);
+                log(`📡 Consumer.connection: ${!!cable.connection}`);
+
+                if (!cable || !cable.connection) {
+                    log('❌ Erreur: Consumer ou connection non créé');
+                    return;
+                }
+
+                // Configuration des événements ActionCable (pas WebSocket natif)
+                log('🔧 Configuration des événements ActionCable...');
+                
+                cable.connection.onopen = (event) => {
+                    wsConnected = true;
+                    wsStatus.textContent = `WebSocket: Connecté (${currentUser.name})`;
+                    wsStatus.className = 'status connected';
+                    log(`✅ WebSocket connecté avec JWT pour ${currentUser.name}`);
+                    updateUI();
+                    loadGames();
+                };
+                
+                cable.connection.onclose = (event) => {
+                    wsConnected = false;
+                    gameConnected = false;
+                    wsStatus.textContent = 'WebSocket: Déconnecté';
+                    wsStatus.className = 'status disconnected';
+                    gameStatus.textContent = 'Partie: Non connecté';
+                    gameStatus.className = 'status disconnected';
+                    log(`❌ WebSocket déconnecté - Code: ${event.code}, Raison: ${event.reason}`);
+                    updateUI();
+                };
+                
+                cable.connection.onerror = (error) => {
+                    log(`❌ Erreur WebSocket: ${JSON.stringify(error)}`);
+                };
+
+                cable.connection.onmessage = (event) => {
+                    log(`📨 Message WebSocket brut: ${event.data}`);
+                };
+                
+                // Forcer la connexion si nécessaire
+                log('🚀 Tentative de connexion...');
+                if (typeof cable.connection.open === 'function') {
+                    log('🔧 Appel de cable.connection.open()');
+                    cable.connection.open();
+                }
+                
+                // Surveillance simple
+                setTimeout(() => {
+                    log(`⏱️ État après 2s: ${cable.connection.state || 'undefined'}`);
+                    log(`⏱️ WebSocket natif: ${!!cable.connection.webSocket}`);
+                    if (cable.connection.webSocket) {
+                        log(`⏱️ WebSocket state: ${cable.connection.webSocket.readyState}`);
+                    }
+                    
+                    // Si pas connecté après 2s, on force quand même l'UI pour permettre les tests
+                    if (!wsConnected) {
+                        log(`⚠️ Pas d'événement onopen, mais on continue pour les tests...`);
+                        wsConnected = true;
+                        wsStatus.textContent = `WebSocket: Statut inconnu mais disponible`;
+                        wsStatus.className = 'status connected';
+                        updateUI();
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                log(`❌ Erreur création WebSocket: ${error.name}: ${error.message}`);
+                log(`❌ Stack: ${error.stack}`);
+            }
+        }
+
+        async function loadGames() {
+            try {
+                log('📋 Chargement des parties disponibles...');
+                
+                const response = await fetch(`${API_BASE}/games/all`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const gameSelect = document.getElementById('gameSelect');
+                    gameSelect.innerHTML = '<option value="">Choisir une partie...</option>';
+                    
+                    data.games.forEach(game => {
+                        const option = document.createElement('option');
+                        option.value = game.id;
+                        option.textContent = `🎮 Partie ${game.id} (${game.current_players}/${game.player_count} joueurs) - ${game.game_status}`;
+                        gameSelect.appendChild(option);
+                    });
+                    
+                    log(`✅ ${data.games.length} parties chargées`);
+                } else {
+                    log('❌ Erreur lors du chargement des parties');
+                }
+            } catch (error) {
+                log(`❌ Erreur réseau lors du chargement des parties: ${error.message}`);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (cable) {
+                gameSubscription = null;
+                testSubscription = null;
+                cable.disconnect();
+                cable = null;
+                wsConnected = false;
+                gameConnected = false;
+                wsStatus.textContent = 'WebSocket: Déconnecté';
+                wsStatus.className = 'status disconnected';
+                gameStatus.textContent = 'Partie: Non connecté';
+                gameStatus.className = 'status disconnected';
+                log('🔌 WebSocket déconnecté manuellement');
+                updateUI();
+            }
+        }
+
+        function connectToGame() {
+            if (!cable || !wsConnected) {
+                log('❌ WebSocket non connecté');
+                return;
+            }
+
+            const gameId = document.getElementById('gameSelect').value;
+            if (!gameId) {
+                log('❌ Veuillez sélectionner une partie');
+                return;
+            }
+
+            try {
+                log(`🎮 Connexion à la partie ${gameId} avec l'utilisateur authentifié`);
+                
+                gameSubscription = cable.subscriptions.create({
+                    channel: 'GameChannel',
+                    game_id: gameId
+                }, {
+                    connected() {
+                        gameConnected = true;
+                        gameStatus.textContent = `Partie: Connecté à ${gameId}`;
+                        gameStatus.className = 'status connected';
+                        log(`✅ Connecté à la partie ${gameId}`);
+                        updateUI();
+                    },
+
+                    disconnected() {
+                        gameConnected = false;
+                        gameStatus.textContent = 'Partie: Non connecté';
+                        gameStatus.className = 'status disconnected';
+                        log(`❌ Déconnecté de la partie`);
+                        updateUI();
+                    },
+
+                    rejected() {
+                        gameConnected = false;
+                        log(`❌ Connexion à la partie ${gameId} rejetée - Utilisateur non autorisé`);
+                        updateUI();
+                    },
+
+                    received(data) {
+                        handleGameMessage(data);
+                    }
+                });
+
+            } catch (error) {
+                log(`❌ Erreur connexion partie: ${error.message}`);
+            }
+        }
+
+        function handleGameMessage(data) {
+            log(`📨 Message partie reçu: ${JSON.stringify(data, null, 2)}`);
+
+            switch(data.type) {
+                case 'game_joined':
+                    log(`🎮 Rejoint la partie ! Status: ${data.game.game_status}`);
+                    displayGameInfo(data.game, data.your_game_user);
+                    break;
+                    
+                case 'player_connected':
+                    log(`👤 ${data.game_user.user_name} s'est connecté`);
+                    break;
+                    
+                case 'player_disconnected':
+                    log(`👤 ${data.game_user.user_name} s'est déconnecté`);
+                    break;
+                    
+                case 'chat_message':
+                    log(`💬 ${data.from.user_name}: ${data.message}`);
+                    break;
+                    
+                case 'game_action':
+                    log(`🎮 ${data.from.user_name} a fait l'action: ${data.action_type}`);
+                    break;
+                    
+                default:
+                    log(`📨 Message de type inconnu: ${data.type}`);
+            }
+        }
+
+        function displayGameInfo(game, yourGameUser) {
+            document.getElementById('gameDetails').innerHTML = `
+                <strong>Partie ${game.id}</strong><br>
+                Status: ${game.game_status}<br>
+                Joueurs: ${game.player_count}<br>
+                Tuiles: ${game.tiles_count}<br>
+                <strong>Vous êtes:</strong> ${yourGameUser.user_name} (${yourGameUser.faction})<br>
+                <strong>Autres joueurs:</strong><br>
+                ${game.game_users.map(gu => `- ${gu.user_name} (${gu.faction})`).join('<br>')}
+            `;
+            document.getElementById('gameInfo').style.display = 'block';
+        }
+
+        function disconnectFromGame() {
+            if (gameSubscription) {
+                gameSubscription.unsubscribe();
+                gameSubscription = null;
+                gameConnected = false;
+                log('🔌 Déconnexion de la partie');
+                updateUI();
+            }
+        }
+
+        function sendChatMessage() {
+            if (!gameConnected || !gameSubscription) {
+                log('❌ Pas de connexion à une partie');
+                return;
+            }
+
+            const message = document.getElementById('chatInput').value.trim();
+            if (!message) return;
+
+            log(`📤 Envoi message: "${message}"`);
+            gameSubscription.perform('send_message', { message: message });
+            document.getElementById('chatInput').value = '';
+        }
+
+        function sendGameAction() {
+            if (!gameConnected || !gameSubscription) {
+                log('❌ Pas de connexion à une partie');
+                return;
+            }
+
+            const action = document.getElementById('actionSelect').value;
+            if (!action) return;
+
+            log(`📤 Envoi action: "${action}"`);
+            gameSubscription.perform('game_action', { 
+                action_type: action,
+                timestamp: new Date().toISOString()
+            });
+            document.getElementById('actionSelect').value = '';
+        }
+
+        function subscribeToTestChannel() {
+            if (!cable || !wsConnected) {
+                log('❌ WebSocket non connecté');
+                return;
+            }
+
+            log('🧪 Abonnement au TestChannel...');
+            
+            testSubscription = cable.subscriptions.create("TestChannel", {
+                connected() {
+                    log('✅ Connecté au TestChannel');
+                    updateUI();
+                },
+                
+                disconnected() {
+                    log('❌ Déconnecté du TestChannel');
+                    testSubscription = null;
+                    updateUI();
+                },
+                
+                received(data) {
+                    log(`📨 TestChannel: ${JSON.stringify(data)}`);
+                    
+                    if (data.type === 'server_ping') {
+                        this.perform('server_pong', { 
+                            message: 'Pong du client!',
+                            timestamp: new Date().toISOString()
+                        });
+                        log('🏓 Réponse automatique au ping serveur');
+                    }
+                }
+            });
+        }
+
+        function sendPing() {
+            if (!testSubscription) {
+                log('❌ Non abonné au TestChannel');
+                return;
+            }
+
+            log('🏓 Envoi ping TestChannel...');
+            testSubscription.perform('ping', { 
+                message: 'Ping du client!',
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        // Envoyer un message avec Enter
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+
+        // Initialisation
+        updateUI();
+        log('🚀 Page chargée - Prêt pour les tests JWT + ActionCable');
+        
+        // Test de connectivité serveur
+        async function testServerConnection() {
+            try {
+                log('🌐 Test de connectivité serveur...');
+                const response = await fetch(`${API_BASE}/up`);
+                if (response.ok) {
+                    log('✅ Serveur Rails accessible');
+                    loadGames(); // Charger les parties au démarrage
+                } else {
+                    log('❌ Serveur Rails non accessible');
+                }
+            } catch (error) {
+                log(`❌ Erreur de connectivité serveur: ${error.message}`);
+            }
+        }
+        
+        // Lancer le test de connectivité
+        testServerConnection();
+    </script>
+</body>
+</html> 

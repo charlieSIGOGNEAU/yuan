@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test GameChannel - Connexion aux Parties</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        input, select {
+            width: 200px;
+            padding: 5px;
+            margin: 5px;
+        }
+        .game-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test GameChannel - Connexion aux Parties</h1>
+    
+    <div style="background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h3>🧪 Tests d'isolation des canaux :</h3>
+        <ul>
+            <li><strong>Test isolation :</strong> Ouvrez 4 onglets. Connectez User1 et User2 à la Partie 9, User4 et User5 à la Partie 10. Les messages de la Partie 9 ne doivent PAS apparaître dans la Partie 10.</li>
+            <li><strong>Test rejet :</strong> Essayez User1 → Partie 10 (rejet attendu)</li>
+            <li><strong>Test cross-party :</strong> Envoyez des messages dans chaque partie pour vérifier l'isolation</li>
+        </ul>
+    </div>
+    
+    <div class="container">
+        <!-- Panneau de connexion -->
+        <div class="panel">
+            <h3>Connexion à une partie</h3>
+            
+            <div>
+                <label>Utilisateur:</label><br>
+                <select id="userSelect">
+                    <option value="">Choisir un utilisateur...</option>
+                    <option value="25">User1 (ID: 25) - Partie 9</option>
+                    <option value="26">User2 (ID: 26) - Partie 9</option>
+                    <option value="27">User3 (ID: 27) - Partie 9</option>
+                    <option value="28">User4 (ID: 28) - Partie 10</option>
+                    <option value="29">User5 (ID: 29) - Partie 10</option>
+                    <option value="30">User6 (ID: 30) - Partie 10</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Partie:</label><br>
+                <select id="gameSelect">
+                    <option value="">Choisir une partie...</option>
+                    <option value="9">🎮 Partie 9 (User1, User2, User3)</option>
+                    <option value="10">🎯 Partie 10 (User4, User5, User6)</option>
+                    <option value="11">❌ Partie 11 (vide - test rejet)</option>
+                </select>
+            </div>
+
+            <div id="status" class="status disconnected">
+                Statut: Déconnecté
+            </div>
+
+            <div>
+                <button id="connectBtn" onclick="connectToGame()">Se connecter à la partie</button>
+                <button id="disconnectBtn" onclick="disconnectFromGame()" disabled>Se déconnecter</button>
+            </div>
+
+            <div id="gameInfo" class="game-info" style="display: none;">
+                <h4>Informations de la partie:</h4>
+                <div id="gameDetails"></div>
+            </div>
+        </div>
+
+        <!-- Panneau de communication -->
+        <div class="panel">
+            <h3>Communication</h3>
+            
+            <div>
+                <input type="text" id="chatInput" placeholder="Message de chat..." disabled>
+                <button id="sendChatBtn" onclick="sendChatMessage()" disabled>Envoyer</button>
+            </div>
+
+            <div>
+                <select id="actionSelect" disabled>
+                    <option value="">Choisir une action...</option>
+                    <option value="move_piece">Déplacer une pièce</option>
+                    <option value="roll_dice">Lancer les dés</option>
+                    <option value="end_turn">Terminer le tour</option>
+                </select>
+                <button id="sendActionBtn" onclick="sendGameAction()" disabled>Exécuter l'action</button>
+            </div>
+        </div>
+    </div>
+
+    <h3>Logs de communication en temps réel:</h3>
+    <div id="log" class="log"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@rails/actioncable@7.0.0/app/assets/javascripts/actioncable.js"></script>
+    <script>
+        let cable;
+        let gameSubscription;
+        let connected = false;
+        let currentUserId = null;
+        let currentGameId = null;
+
+        const statusDiv = document.getElementById('status');
+        const logDiv = document.getElementById('log');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const chatInput = document.getElementById('chatInput');
+        const sendChatBtn = document.getElementById('sendChatBtn');
+        const actionSelect = document.getElementById('actionSelect');
+        const sendActionBtn = document.getElementById('sendActionBtn');
+        const gameInfo = document.getElementById('gameInfo');
+        const gameDetails = document.getElementById('gameDetails');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[GameChannel] ${message}`);
+        }
+
+        function updateStatus(isConnected) {
+            connected = isConnected;
+            if (isConnected) {
+                statusDiv.textContent = `Statut: Connecté à la partie ${currentGameId}`;
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                chatInput.disabled = false;
+                sendChatBtn.disabled = false;
+                actionSelect.disabled = false;
+                sendActionBtn.disabled = false;
+                gameInfo.style.display = 'block';
+            } else {
+                statusDiv.textContent = 'Statut: Déconnecté';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                chatInput.disabled = true;
+                sendChatBtn.disabled = true;
+                actionSelect.disabled = true;
+                sendActionBtn.disabled = true;
+                gameInfo.style.display = 'none';
+            }
+        }
+
+        function connectToGame() {
+            const userId = document.getElementById('userSelect').value;
+            const gameId = document.getElementById('gameSelect').value;
+
+            if (!userId || !gameId) {
+                log('❌ Veuillez sélectionner un utilisateur et une partie');
+                return;
+            }
+
+            currentUserId = userId;
+            currentGameId = gameId;
+
+            try {
+                log(`🔄 Tentative de connexion: User ${userId} → Partie ${gameId}`);
+                
+                // Créer la connexion ActionCable
+                cable = ActionCable.createConsumer('ws://localhost:3000/cable');
+                
+                log('📡 Consumer ActionCable créé');
+
+                // S'abonner au GameChannel avec les paramètres
+                gameSubscription = cable.subscriptions.create({
+                    channel: 'GameChannel',
+                    game_id: gameId,
+                    user_id: userId
+                }, {
+                    connected() {
+                        log('✅ Connecté au GameChannel');
+                        updateStatus(true);
+                    },
+
+                    disconnected() {
+                        log('❌ Déconnecté du GameChannel');
+                        updateStatus(false);
+                    },
+
+                    rejected() {
+                        log('❌ Connexion rejetée - Vérifiez que l\'utilisateur fait partie de cette partie');
+                        updateStatus(false);
+                    },
+
+                    received(data) {
+                        handleGameMessage(data);
+                    }
+                });
+
+            } catch (error) {
+                log(`❌ Erreur de connexion: ${error.message}`);
+                updateStatus(false);
+            }
+        }
+
+        function handleGameMessage(data) {
+            log(`📨 Message reçu: ${JSON.stringify(data, null, 2)}`);
+
+            switch(data.type) {
+                case 'game_joined':
+                    log(`🎮 Rejoint la partie ! Status: ${data.game.game_status}`);
+                    displayGameInfo(data.game, data.your_game_user);
+                    break;
+                    
+                case 'player_connected':
+                    log(`👤 ${data.game_user.user_name} s'est connecté`);
+                    break;
+                    
+                case 'player_disconnected':
+                    log(`👤 ${data.game_user.user_name} s'est déconnecté`);
+                    break;
+                    
+                case 'chat_message':
+                    log(`💬 ${data.from.user_name}: ${data.message}`);
+                    break;
+                    
+                case 'game_action':
+                    log(`🎮 ${data.from.user_name} a fait l'action: ${data.action_type}`);
+                    break;
+                    
+                default:
+                    log(`📨 Message de type inconnu: ${data.type}`);
+            }
+        }
+
+        function displayGameInfo(game, yourGameUser) {
+            gameDetails.innerHTML = `
+                <strong>Partie ${game.id}</strong><br>
+                Status: ${game.game_status}<br>
+                Joueurs: ${game.player_count}<br>
+                Tuiles: ${game.tiles_count}<br>
+                <strong>Vous êtes:</strong> ${yourGameUser.user_name} (${yourGameUser.faction})<br>
+                <strong>Autres joueurs:</strong><br>
+                ${game.game_users.map(gu => `- ${gu.user_name} (${gu.faction})`).join('<br>')}
+            `;
+        }
+
+        function disconnectFromGame() {
+            if (gameSubscription) {
+                gameSubscription.unsubscribe();
+                log('🔌 Déconnexion demandée');
+            }
+            if (cable) {
+                cable.disconnect();
+                cable = null;
+            }
+            updateStatus(false);
+        }
+
+        function sendChatMessage() {
+            if (!connected || !gameSubscription) {
+                log('❌ Pas de connexion active');
+                return;
+            }
+
+            const message = chatInput.value.trim();
+            if (!message) {
+                log('❌ Message vide');
+                return;
+            }
+
+            log(`📤 Envoi du message: "${message}"`);
+            gameSubscription.perform('send_message', { message: message });
+            chatInput.value = '';
+        }
+
+        function sendGameAction() {
+            if (!connected || !gameSubscription) {
+                log('❌ Pas de connexion active');
+                return;
+            }
+
+            const action = actionSelect.value;
+            if (!action) {
+                log('❌ Aucune action sélectionnée');
+                return;
+            }
+
+            log(`📤 Envoi de l'action: "${action}"`);
+            gameSubscription.perform('game_action', { 
+                action_type: action,
+                timestamp: new Date().toISOString()
+            });
+            actionSelect.value = '';
+        }
+
+        // Envoyer un message avec Enter
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+
+        // Log initial
+        log('🚀 Page chargée, prêt à se connecter à une partie');
+    </script>
+</body>
+</html> 

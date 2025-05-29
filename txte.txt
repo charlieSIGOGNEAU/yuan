@@ -32,3 +32,5 @@ Dites-moi par quelle partie vous voulez commencer !
 
 Pour ouvrir un serveur Python, il suffit d'exécuter la commande: 
 python3 -m http.server 8000
+
+Tu dois lancer le serveur Rails avec rails s -b 0.0.0.0 -p 3000
